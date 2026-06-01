@@ -101,9 +101,12 @@ cp volo-model/models/model-config.json volo-api/models/model-config.json
 
 ## Documentation
 
-- [ ] Convert remaining HTML docs (volo-extension, volo-model, volo-desktop) to visual HTML
-- [ ] Update SPEC.md with current state (some things changed from original spec)
-- [ ] Write thesis chapter outlines
+- [ ] Create `volo-docs` repo for visual HTML documentation (GitHub Pages)
+- [ ] Convert all MD docs to interactive HTML pages (same style as the deleted SPEC.html/DOCS.html)
+- [ ] Host on GitHub Pages: https://opetricevic.github.io/volo-docs
+- [ ] Link from main volo README to the docs site
+- [ ] Pages to create: Architecture, API Reference, Database Schema, Auth Flows, Intent Parser, Deployment, Observability
+- [ ] Make them interactive (tabs, collapsible sections, SVG diagrams, code highlighting)
 
 ---
 

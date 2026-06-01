@@ -1,5 +1,10 @@
 # Volo — Voice-First Browser Assistant
 
+> **Documentation:** [DOCS.md](./DOCS.md) | [DOCS.html](./DOCS.html) (visual)
+> **Decisions:** [DECISIONS.md](./DECISIONS.md) (why things are the way they are)
+> **Visual Spec:** [SPEC.html](./SPEC.html)
+> **Desktop Spec:** [volo-desktop/SPEC.md](./volo-desktop/SPEC.md)
+
 ## Overview
 
 Volo is a voice-activated personal assistant that lives in your browser and on your desktop. You say **"Hey Volo"** and it listens, then executes your command — searching the web, opening apps/sites, navigating within sites, or playing content. It learns your patterns over time using a lightweight AI model to surface your most likely intent faster.
@@ -185,10 +190,21 @@ Implementation: Weighted frequency model stored per-user in the database. Not a 
 | Framework | Chi or standard net/http |
 | Database | SQLite (dev) / PostgreSQL (prod) |
 | Auth | JWT or API key per device |
-| Intent parsing | Rule-based + fuzzy matching (evolve to ML later) |
+| Intent parsing | Rule-based (fast path) + DistilBERT ONNX (fallback) |
 | Pattern model | Weighted frequency counters + recency decay |
+| ML Runtime | ONNX Runtime (via onnxruntime-go) |
 | API style | REST (JSON) |
-| Deployment | Docker / single binary |
+| Deployment | Docker / single binary → VM |
+
+### Volo Model (Python — training only)
+| Layer | Choice |
+|-------|--------|
+| Base model | DistilBERT (67M params) |
+| Framework | HuggingFace Transformers + PyTorch |
+| Task | Sequence classification (intent) + token classification (slots) |
+| Export | ONNX format (portable, runs in Go) |
+| Dataset | Custom ~500-1000 labeled voice commands |
+| Training | CPU-friendly, ~10 min on any machine |
 
 ### Volo Landing
 | Layer | Choice |
@@ -198,6 +214,275 @@ Implementation: Weighted frequency model stored per-user in the database. Not a 
 | Styling | Tailwind CSS |
 | Hosting | Vercel / Netlify / static |
 | Content | Download links, features, demo video placeholder |
+
+---
+
+## AI / Intent Classification Pipeline
+
+### Architecture: Hybrid (Rule-Based + Fine-Tuned Model)
+
+```
+Transcript: "open youtube play lofi hip hop"
+                    │
+                    ▼
+    ┌───────────────────────────────┐
+    │     Rule-Based Parser          │  ← Fast path (~1ms)
+    │     Pattern matching on        │
+    │     keywords: open, search,    │
+    │     play, go, close, new...    │
+    │                                │
+    │     confidence = 0.92 ✓        │
+    └───────────────┬───────────────┘
+                    │
+            if confidence < 0.80
+                    │
+                    ▼
+    ┌───────────────────────────────┐
+    │     DistilBERT (ONNX)          │  ← Fallback (~8ms)
+    │     Fine-tuned classifier      │
+    │     Handles ambiguous/novel    │
+    │     commands                   │
+    └───────────────────────────────┘
+```
+
+### Why DistilBERT?
+
+- **67M parameters** — tiny, runs on CPU in milliseconds
+- **No GPU required** — deploys on any VM or server
+- **ONNX export** — portable binary, loads directly in Go
+- **Fine-tunable** — train on your own dataset in minutes
+- **Proven** — well-documented, battle-tested architecture
+
+### Model Tasks
+
+The model handles two tasks simultaneously:
+
+1. **Intent Classification** (what action to take)
+   - Labels: `search`, `navigate`, `open-and-search`, `open-and-play`, `browser-control`
+
+2. **Slot Extraction** (what entities are in the command)
+   - Slots: `target` (youtube, github, etc.), `query` (search terms)
+
+### Training Pipeline
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  1. Create Dataset                                       │
+│     - 500-1000 labeled commands (JSON/CSV)               │
+│     - Mix of simple + ambiguous examples                 │
+│     - Include user variations ("open tube" = youtube)    │
+└──────────────────────────┬──────────────────────────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────┐
+│  2. Fine-Tune (Python + HuggingFace)                     │
+│     - Load pretrained distilbert-base-uncased            │
+│     - Add classification head for intents                │
+│     - Train ~5 epochs, batch size 16                     │
+│     - Takes ~10 min on CPU                               │
+└──────────────────────────┬──────────────────────────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────┐
+│  3. Export to ONNX                                       │
+│     - torch.onnx.export() → model.onnx                  │
+│     - Tokenizer config → tokenizer.json                  │
+│     - Single portable file (~250MB → quantized ~65MB)    │
+└──────────────────────────┬──────────────────────────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────┐
+│  4. Load in Go Backend                                   │
+│     - onnxruntime-go loads model.onnx at startup         │
+│     - Tokenize input → run inference → get labels        │
+│     - ~8ms per inference on CPU                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Example Training Data (dataset format)
+
+```json
+[
+  { "text": "search for react hooks", "intent": "search", "target": null, "query": "react hooks" },
+  { "text": "open youtube", "intent": "navigate", "target": "youtube.com", "query": null },
+  { "text": "open youtube play lofi", "intent": "open-and-play", "target": "youtube.com", "query": "lofi" },
+  { "text": "find that golang tutorial", "intent": "search", "target": null, "query": "golang tutorial" },
+  { "text": "go to github", "intent": "navigate", "target": "github.com", "query": null },
+  { "text": "close this tab", "intent": "browser-control", "target": null, "query": null },
+  { "text": "play some jazz on spotify", "intent": "open-and-play", "target": "spotify.com", "query": "jazz" }
+]
+```
+
+### Go Integration
+
+```go
+package intent
+
+import (
+    ort "github.com/yalue/onnxruntime_go"
+)
+
+type ModelParser struct {
+    session   *ort.Session
+    tokenizer *Tokenizer  // custom tokenizer matching HuggingFace output
+}
+
+func (m *ModelParser) Parse(transcript string) (CommandResult, error) {
+    // 1. Tokenize
+    tokens := m.tokenizer.Encode(transcript)
+    
+    // 2. Run inference
+    output, err := m.session.Run(tokens)
+    if err != nil {
+        return CommandResult{}, err
+    }
+    
+    // 3. Decode labels
+    intent := decodeIntent(output[0])   // "open-and-play"
+    slots := decodeSlots(output[1])     // {target: "youtube.com", query: "lofi"}
+    
+    return CommandResult{
+        Action:     intent,
+        Target:     slots.Target,
+        Query:      slots.Query,
+        Confidence: output[0].MaxScore(),
+    }, nil
+}
+```
+
+### Continuous Improvement
+
+The model improves over time without retraining:
+1. **Frequency model** handles personalization (most-used commands rank higher)
+2. **Correction logging** — if user repeats a command differently, log it as training data
+3. **Periodic retraining** — batch new examples, retrain model, hot-swap ONNX file
+
+---
+
+## Deployment
+
+### Target: Self-Hosted VM
+
+The entire backend deploys as a single Docker container on your VM.
+
+```
+┌─────────────────────────────────────────────┐
+│              Your VM                         │
+│                                              │
+│  ┌────────────────────────────────────────┐  │
+│  │         Docker Container                │  │
+│  │                                         │  │
+│  │  ┌─────────────┐  ┌────────────────┐   │  │
+│  │  │  Go Binary   │  │  model.onnx    │   │  │
+│  │  │  (volo-api)  │  │  (65MB)        │   │  │
+│  │  └──────┬───────┘  └────────────────┘   │  │
+│  │         │                                │  │
+│  │  ┌──────┴───────┐                       │  │
+│  │  │  SQLite DB    │  (or Postgres)        │  │
+│  │  │  (data.db)    │                       │  │
+│  │  └──────────────┘                       │  │
+│  └────────────────────────────────────────┘  │
+│                                              │
+│  ┌────────────────────────────────────────┐  │
+│  │  Caddy / Nginx (reverse proxy + TLS)    │  │
+│  │  api.volo.yourdomain.com → :8080        │  │
+│  └────────────────────────────────────────┘  │
+│                                              │
+│  ┌────────────────────────────────────────┐  │
+│  │  Volo Landing (static files)            │  │
+│  │  volo.yourdomain.com → /var/www/volo    │  │
+│  └────────────────────────────────────────┘  │
+└─────────────────────────────────────────────┘
+```
+
+### Dockerfile
+
+```dockerfile
+FROM golang:1.22-alpine AS builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=1 go build -o volo-api ./cmd/server
+
+FROM alpine:3.19
+RUN apk add --no-cache ca-certificates libc6-compat
+WORKDIR /app
+COPY --from=builder /app/volo-api .
+COPY --from=builder /app/models/ ./models/
+COPY --from=builder /app/migrations/ ./migrations/
+EXPOSE 8080
+CMD ["./volo-api"]
+```
+
+### docker-compose.yml
+
+```yaml
+version: "3.8"
+services:
+  volo-api:
+    build: ./volo-api
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data          # SQLite persistence
+      - ./models:/app/models      # ONNX model files
+    environment:
+      - VOLO_DB_PATH=/app/data/volo.db
+      - VOLO_MODEL_PATH=/app/models/intent.onnx
+      - VOLO_JWT_SECRET=${JWT_SECRET}
+      - VOLO_PORT=8080
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./volo-landing/dist:/var/www/landing
+      - caddy_data:/data
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+```
+
+### Caddyfile
+
+```
+api.volo.yourdomain.com {
+    reverse_proxy volo-api:8080
+}
+
+volo.yourdomain.com {
+    root * /var/www/landing
+    file_server
+}
+```
+
+### Deploy Commands
+
+```bash
+# On your VM:
+git clone <your-repo>
+cd volo-api
+
+# Build and start
+docker compose up -d --build
+
+# Update model (hot-swap without restart)
+scp models/intent.onnx vm:/path/to/models/
+docker compose restart volo-api
+
+# View logs
+docker compose logs -f volo-api
+```
+
+### Requirements
+
+- **VM specs:** 1 vCPU, 1GB RAM minimum (DistilBERT ONNX is lightweight)
+- **Storage:** ~500MB (Go binary + model + DB)
+- **OS:** Any Linux (Ubuntu/Debian recommended)
+- **Ports:** 80, 443 (Caddy handles TLS automatically via Let's Encrypt)
 
 ---
 
@@ -325,15 +610,30 @@ c:\Learn\Thesis\
 │   │       └── main.go
 │   ├── internal\
 │   │   ├── handler\         — HTTP handlers
-│   │   ├── intent\          — Intent parser
+│   │   ├── intent\          — Intent parser (rule-based + ONNX)
 │   │   ├── model\           — Pattern learning model
 │   │   ├── storage\         — Database layer
 │   │   └── middleware\      — Auth, logging, CORS
+│   ├── models\              — ONNX model files (intent.onnx, tokenizer.json)
 │   ├── migrations\          — SQL migrations
 │   ├── go.mod
 │   ├── go.sum
 │   ├── Dockerfile
+│   ├── docker-compose.yml
 │   └── Makefile
+│
+├── volo-model\              — ML training pipeline (Python)
+│   ├── data\
+│   │   ├── train.json       — Training dataset
+│   │   └── eval.json        — Evaluation dataset
+│   ├── scripts\
+│   │   ├── train.py         — Fine-tune DistilBERT
+│   │   ├── export_onnx.py   — Export to ONNX format
+│   │   ├── evaluate.py      — Test accuracy
+│   │   └── generate_data.py — Helper to generate training examples
+│   ├── models\              — Output: trained model + ONNX export
+│   ├── requirements.txt     — torch, transformers, onnx, datasets
+│   └── README.md
 │
 ├── volo-landing\            — Marketing site
 │   ├── src\
@@ -345,7 +645,8 @@ c:\Learn\Thesis\
 │   ├── tsconfig.json
 │   └── package.json
 │
-└── SPEC.md                  — This file
+├── SPEC.md                  — This file
+└── SPEC.html                — Visual spec (open in browser)
 ```
 
 ---
@@ -367,32 +668,36 @@ c:\Learn\Thesis\
 10. Command history storage
 11. Connect extension to backend API
 
-### Phase 3 — Pattern Learning
-12. Implement frequency model in Go
-13. Suggestions endpoint based on history
-14. Time-of-day weighting
-15. Fuzzy matching for site names
+### Phase 3 — ML Model + Pattern Learning
+12. Create training dataset (~500-1000 labeled commands)
+13. Fine-tune DistilBERT on intent classification
+14. Export to ONNX, integrate into Go backend via onnxruntime-go
+15. Implement frequency model for personalization
+16. Suggestions endpoint based on history + time-of-day
+17. Fuzzy matching for site names
 
 ### Phase 4 — Desktop App
-16. Scaffold Electron app with React renderer
-17. System tray + global hotkey
-18. Embedded BrowserView for web navigation
-19. Share voice logic with extension
-20. Desktop app launching (shell exec)
+18. Scaffold Electron app with React renderer
+19. System tray + global hotkey
+20. Embedded BrowserView for web navigation
+21. Share voice logic with extension
+22. Desktop app launching (shell exec)
 
 ### Phase 5 — Landing Page
-21. Scaffold React + Vite site
-22. Hero section with demo/video placeholder
-23. Features breakdown
-24. Download links (extension store + desktop installer)
-25. Deploy to static hosting
+23. Scaffold React + Vite site
+24. Hero section with demo/video placeholder
+25. Features breakdown
+26. Download links (extension store + desktop installer)
+27. Deploy to static hosting
 
-### Phase 6 — Polish
-26. Visual feedback (listening animation, command confirmation)
-27. Error handling and retry logic
-28. Settings sync across devices
-29. Onboarding flow (mic permission, tutorial)
-30. Cross-browser testing (Chrome, Opera, Edge)
+### Phase 6 — Deployment + Polish
+28. Dockerize Go backend + ONNX model
+29. Deploy to VM (docker-compose + Caddy for TLS)
+30. Visual feedback (listening animation, command confirmation)
+31. Error handling and retry logic
+32. Settings sync across devices
+33. Onboarding flow (mic permission, tutorial)
+34. Cross-browser testing (Chrome, Opera, Edge)
 
 ---
 
@@ -423,7 +728,7 @@ This project supports several academic angles:
 - Mobile app
 - Firefox support (Manifest V2 differences)
 - Multi-language voice recognition (English only initially)
-- Cloud deployment (local dev first)
-- Real ML model training (start with frequency heuristics)
 - Voice synthesis (Volo doesn't talk back — yet)
 - Multi-user / team features
+- GPU inference (CPU-only is fine for DistilBERT)
+- Real-time model retraining (batch retrain manually when needed)

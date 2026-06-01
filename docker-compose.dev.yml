@@ -1,0 +1,110 @@
+##
+## Volo — Full Development Environment
+##
+## One command to spin up everything:
+##   docker compose -f docker-compose.dev.yml up -d
+##
+## Services:
+##   postgres   — Database (port 5432)
+##   redis      — Cache + rate limiting (port 6379)
+##   api        — Go backend (port 8080)
+##   model      — Python ML training environment (Jupyter on port 8888)
+##
+## First time? Run:
+##   docker compose -f docker-compose.dev.yml up -d --build
+##
+
+version: "3.8"
+
+services:
+  # ─── Database ───────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: volo
+      POSTGRES_PASSWORD: volo
+      POSTGRES_DB: volo
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./volo-api/migrations/001_initial.sql:/docker-entrypoint-initdb.d/001_initial.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U volo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── Cache ──────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── Go API ─────────────────────────────────────────────
+  api:
+    build:
+      context: ./volo-api
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8080:8080"
+    environment:
+      - VOLO_PORT=8080
+      - VOLO_DATABASE_URL=postgres://volo:volo@postgres:5432/volo?sslmode=disable
+      - VOLO_REDIS_ADDR=redis:6379
+      - VOLO_JWT_SECRET=dev-secret-do-not-use-in-production
+      - VOLO_CORS_ORIGINS=*
+      - VOLO_LOG_LEVEL=debug
+    volumes:
+      - ./volo-api:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ─── ML Training Environment ────────────────────────────
+  model:
+    build:
+      context: ./volo-model
+      dockerfile: Dockerfile
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./volo-model:/workspace
+      - model_cache:/root/.cache  # HuggingFace model cache (persists between rebuilds)
+    environment:
+      - JUPYTER_TOKEN=volo
+    command: >
+      jupyter lab
+      --ip=0.0.0.0
+      --port=8888
+      --no-browser
+      --allow-root
+      --NotebookApp.token=volo
+
+  # ─── Ollama (Local LLM for chat) ───────────────────────
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_data:
+  redis_data:
+  model_cache:
+  ollama_data:

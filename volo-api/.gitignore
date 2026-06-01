@@ -1,0 +1,18 @@
+# Binary
+volo-api
+*.exe
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+tmp/

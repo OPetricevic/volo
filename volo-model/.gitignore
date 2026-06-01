@@ -1,0 +1,28 @@
+# Model outputs (large files)
+models/volo-intent/
+models/onnx-export/
+models/onnx-quantized/
+models/*.onnx
+models/tokenizer/
+
+# Keep config
+!models/model-config.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# Environment
+.env
+.venv/
+venv/
+
+# Data (regenerated from script)
+data/train.json
+data/eval.json
+
+# IDE
+.vscode/
+.idea/

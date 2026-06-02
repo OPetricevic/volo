@@ -17,8 +17,13 @@ func TestCORS_AllowsWildcard(t *testing.T) {
 
 	handler.ServeHTTP(rec, req)
 
-	if rec.Header().Get("Access-Control-Allow-Origin") != "https://example.com" {
-		t.Errorf("expected origin to be allowed, got %q", rec.Header().Get("Access-Control-Allow-Origin"))
+	// Wildcard mode sets literal "*" (no credentials)
+	if rec.Header().Get("Access-Control-Allow-Origin") != "*" {
+		t.Errorf("expected wildcard ACAO, got %q", rec.Header().Get("Access-Control-Allow-Origin"))
+	}
+	// Should NOT set credentials with wildcard
+	if rec.Header().Get("Access-Control-Allow-Credentials") != "" {
+		t.Error("wildcard mode should not set Allow-Credentials")
 	}
 }
 
@@ -71,7 +76,7 @@ func TestCORS_PreflightReturns204(t *testing.T) {
 }
 
 func TestCORS_SetsExpectedHeaders(t *testing.T) {
-	handler := CORS([]string{"*"})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := CORS([]string{"https://volo.app"})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -87,7 +92,8 @@ func TestCORS_SetsExpectedHeaders(t *testing.T) {
 	if rec.Header().Get("Access-Control-Allow-Headers") == "" {
 		t.Error("expected Allow-Headers header")
 	}
+	// Credentials are set when using specific origins (not wildcard)
 	if rec.Header().Get("Access-Control-Allow-Credentials") != "true" {
-		t.Error("expected Allow-Credentials = true")
+		t.Error("expected Allow-Credentials = true for specific origin")
 	}
 }

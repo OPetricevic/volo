@@ -145,3 +145,15 @@ func (r *UserRepository) SoftDeleteDevice(ctx context.Context, id string) error 
 	}
 	return nil
 }
+
+// DeleteDevice soft-deletes a device for a specific user (ownership check).
+func (r *UserRepository) DeleteDevice(ctx context.Context, userID, deviceID string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE devices SET deleted_at = now(), updated_at = now()
+		 WHERE device_id = $1 AND user_id = $2 AND deleted_at IS NULL`, deviceID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("repository.User.DeleteDevice: %w", err)
+	}
+	return nil
+}

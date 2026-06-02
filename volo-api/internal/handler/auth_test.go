@@ -62,8 +62,8 @@ func TestRegisterEmail_MissingFields(t *testing.T) {
 
 	var resp model.Response
 	json.NewDecoder(rec.Body).Decode(&resp)
-	if resp.Error == nil || resp.Error.Code != "MISSING_FIELDS" {
-		t.Errorf("expected MISSING_FIELDS, got %v", resp.Error)
+	if resp.Error == nil || resp.Error.Code != "MISSING_EMAIL" {
+		t.Errorf("expected MISSING_EMAIL, got %v", resp.Error)
 	}
 }
 

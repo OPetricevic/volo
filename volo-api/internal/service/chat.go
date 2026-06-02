@@ -22,6 +22,17 @@ const (
 	chatTimeout = 30 * time.Second
 )
 
+// ollamaClient is a shared HTTP client for Ollama requests.
+// Reused across calls for connection pooling and keepalive.
+var ollamaClient = &http.Client{
+	Timeout: chatTimeout,
+	Transport: &http.Transport{
+		MaxIdleConns:       10,
+		IdleConnTimeout:    90 * time.Second,
+		DisableCompression: true,
+	},
+}
+
 type ChatService struct {
 	repos *repository.Repositories
 }
@@ -90,8 +101,10 @@ func (s *ChatService) Process(ctx context.Context, userID string, req ChatReques
 
 // CheckOllamaStatus checks if Ollama is reachable.
 func (s *ChatService) CheckOllamaStatus() bool {
-	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Get("http://ollama:11434/api/tags")
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, "GET", "http://ollama:11434/api/tags", nil)
+	resp, err := ollamaClient.Do(req)
 	if err != nil {
 		return false
 	}
@@ -161,8 +174,7 @@ func callOllama(ctx context.Context, prompt string) (string, error) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := ollamaClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("ollama request failed (is Ollama running?): %w", err)
 	}

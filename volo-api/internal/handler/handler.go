@@ -2,8 +2,11 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"net/http"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/volo/volo-api/internal/config"
 	"github.com/volo/volo-api/internal/model"
 	"github.com/volo/volo-api/internal/service"
@@ -40,6 +43,25 @@ func (h *Handlers) respondError(w http.ResponseWriter, status int, code, message
 		Code:    code,
 		Message: message,
 	}
+
+	// Log server-side errors
+	if status >= 500 && internalErr != "" {
+		slog.Error("handler error",
+			"code", code,
+			"status", status,
+			"internal_error", internalErr,
+			"user_id", w.Header().Get("X-User-ID"),
+		)
+		// Send to Sentry
+		if hub := sentry.CurrentHub(); hub != nil {
+			hub.WithScope(func(scope *sentry.Scope) {
+				scope.SetTag("error_code", code)
+				scope.SetLevel(sentry.LevelError)
+				sentry.CaptureException(fmt.Errorf("%s: %s", code, internalErr))
+			})
+		}
+	}
+
 	// Only include internal error details in non-production environments
 	if h.cfg != nil && h.cfg.Environment == "production" {
 		// Suppress internal errors in production

@@ -19,18 +19,18 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		Port:               getEnv("VOLO_PORT", "8080"),
-		DatabaseURL:        getEnv("VOLO_DATABASE_URL", "postgres://postgres:postgres@localhost:5432/volo?sslmode=disable"),
-		RedisAddr:          getEnv("VOLO_REDIS_ADDR", "localhost:6379"),
-		RedisPassword:      getEnv("VOLO_REDIS_PASSWORD", ""),
+		Port:               getEnvAny([]string{"VOLO_PORT", "PORT"}, "8080"),
+		DatabaseURL:        getEnvAny([]string{"VOLO_DATABASE_URL", "DATABASE_URL"}, "postgres://postgres:postgres@localhost:5432/volo?sslmode=disable"),
+		RedisAddr:          getEnvAny([]string{"VOLO_REDIS_ADDR", "REDIS_ADDR"}, "localhost:6379"),
+		RedisPassword:      getEnvAny([]string{"VOLO_REDIS_PASSWORD", "REDIS_PASSWORD"}, ""),
 		RedisDB:            0,
-		JWTSecret:          getEnv("VOLO_JWT_SECRET", "dev-secret-change-in-production"),
-		CORSOrigins:        splitEnv("VOLO_CORS_ORIGINS", "*"),
-		LogLevel:           getEnv("VOLO_LOG_LEVEL", "info"),
-		GoogleClientID:     getEnv("VOLO_GOOGLE_CLIENT_ID", ""),
-		GoogleClientSecret: getEnv("VOLO_GOOGLE_CLIENT_SECRET", ""),
-		SentryDSN:          getEnv("VOLO_SENTRY_DSN", ""),
-		Environment:        getEnv("VOLO_ENVIRONMENT", "development"),
+		JWTSecret:          getEnvAny([]string{"VOLO_JWT_SECRET", "JWT_SECRET"}, "dev-secret-change-in-production"),
+		CORSOrigins:        splitEnvAny([]string{"VOLO_CORS_ORIGINS", "CORS_ALLOWED_ORIGINS"}, "*"),
+		LogLevel:           getEnvAny([]string{"VOLO_LOG_LEVEL", "LOG_LEVEL"}, "info"),
+		GoogleClientID:     getEnvAny([]string{"VOLO_GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_ID"}, ""),
+		GoogleClientSecret: getEnvAny([]string{"VOLO_GOOGLE_CLIENT_SECRET", "GOOGLE_CLIENT_SECRET"}, ""),
+		SentryDSN:          getEnvAny([]string{"VOLO_SENTRY_DSN", "SENTRY_DSN"}, ""),
+		Environment:        getEnvAny([]string{"VOLO_ENVIRONMENT", "APP_ENV"}, "development"),
 	}
 }
 
@@ -41,8 +41,17 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-func splitEnv(key, fallback string) []string {
-	v := getEnv(key, fallback)
+func getEnvAny(keys []string, fallback string) string {
+	for _, key := range keys {
+		if v := os.Getenv(key); v != "" {
+			return v
+		}
+	}
+	return fallback
+}
+
+func splitEnvAny(keys []string, fallback string) []string {
+	v := getEnvAny(keys, fallback)
 	if v == "*" {
 		return []string{"*"}
 	}
@@ -62,4 +71,8 @@ func splitEnv(key, fallback string) []string {
 		result = append(result, current)
 	}
 	return result
+}
+
+func splitEnv(key, fallback string) []string {
+	return splitEnvAny([]string{key}, fallback)
 }

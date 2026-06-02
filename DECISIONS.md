@@ -247,3 +247,32 @@ A log of every significant technical decision made in this project, with reasoni
 - Redis caches the validation (fast path), Postgres is source of truth (revocation)
 
 **Tradeoff:** Slightly slower than pure stateless JWT (Redis lookup). But revocability is non-negotiable for a real app.
+
+---
+
+## 17. Host-Managed Redis (not app-local sidecar)
+
+**Decision:** Use a single host-managed Redis instance on the Oracle VM, shared across apps. Volo connects via `127.0.0.1:6379` using `network_mode: host`.
+
+**Why:**
+- OracleHost contract says "databases remain private to the host" — Redis is a data service like Postgres
+- Ampere A1 has limited RAM (24GB shared). One Redis process is more efficient than per-app containers
+- Volo's Redis usage is lightweight (rate limiting + session cache) — doesn't justify a dedicated instance
+- Same pattern as Postgres — both are host-level services the app connects to via env var
+- Simplifies compose file (no extra container to manage in the app slot)
+
+**How it works:**
+- Redis installed on the VM (or in a shared platform-level container)
+- Volo's compose uses `network_mode: host` → connects to `127.0.0.1:6379`
+- Password set via `VOLO_REDIS_PASSWORD` in the private env file
+- If Redis is down, API fails open (rate limiter allows requests, logs warning)
+
+**Env config (in /etc/apps/volo/volo.env):**
+```
+VOLO_REDIS_ADDR=127.0.0.1:6379
+VOLO_REDIS_PASSWORD=<generated-password>
+```
+
+**Alternatives considered:**
+- App-local Redis sidecar (adds a container, wastes memory, isolated failure is nice but unnecessary at this scale)
+- Managed Redis (Oracle Cloud has none in free tier, external services add latency + cost)

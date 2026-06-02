@@ -53,11 +53,18 @@ Platform assumptions:
 - Caddy is the public HTTP entrypoint
 - databases remain private to the host
 
-## Recommended Volo Naming
+## Recommended Environment Model
 
-These names are safe to prepare in code and CI even if the final live values are stored privately elsewhere.
+For this project, keep the deployment model simple:
 
-### Production
+- `local` is the real development and staging environment
+- `production` is the public deployment
+
+There is no need to maintain a separate hosted `dev` environment unless the project grows enough to justify it.
+
+That means the OracleHost preparation in this repo should focus on one hosted app slot:
+
+### Hosted production
 
 ```text
 APP_ID=volo
@@ -67,21 +74,13 @@ ENV_FILE=/etc/apps/volo/volo.env
 DB_NAME=volo
 ```
 
-### Development
-
-```text
-APP_ID=volo-dev
-APP_SLUG=volo
-APP_DIR=/opt/apps/volo-dev
-ENV_FILE=/etc/apps/volo-dev/volo-dev.env
-DB_NAME=volo_dev
-```
-
 Notes:
 
-- production and development should use separate app directories, env files, ports, databases, and deploy users
+- local development remains outside OracleHost
+- production lives on OracleHost and Cloudflare
 - frontend and backend should stay separable
 - final domains, ports, hostnames, and deploy usernames belong in private infra notes or GitHub environment values
+- if you later need a second hosted environment, use the standard OracleHost `volo-dev` slot then
 
 ## What Volo Already Has
 
@@ -146,7 +145,7 @@ OracleHost expects:
 Required action:
 
 - add `.github/workflows/deploy-backend-oracle.yml`
-- use GitHub environments `dev` and `production`
+- use a production GitHub environment for the hosted deploy
 - make the workflow backend-only
 - deploy through the narrow deploy user, not a broad shell user
 
@@ -262,17 +261,6 @@ VOLO_CORS_ORIGINS=https://<frontend-domain>,chrome-extension://<prod-extension-i
 VOLO_MODEL_PATH=/app/models
 ```
 
-### Development
-
-```text
-VOLO_PORT=<development-port>
-VOLO_REDIS_ADDR=<redis-address-or-service-name>
-VOLO_LOG_LEVEL=debug
-VOLO_ENVIRONMENT=development
-VOLO_CORS_ORIGINS=https://<dev-frontend-domain>,chrome-extension://<dev-extension-id>
-VOLO_MODEL_PATH=/app/models
-```
-
 Important:
 
 - do not commit real secret values
@@ -280,10 +268,9 @@ Important:
 
 ## GitHub Environment Shape
 
-OracleHost expects GitHub environments:
+For this project, one hosted GitHub environment is enough:
 
 - `production`
-- `dev`
 
 Recommended GitHub variables:
 
@@ -298,21 +285,25 @@ ORACLE_PORT=<production-port>
 GHCR_IMAGE=ghcr.io/<owner>/<repo-or-image>
 ```
 
-### Development
-
-```text
-ORACLE_HOST=<private-infra-value>
-ORACLE_USER=<deploy-user>
-ORACLE_APP_ID=volo-dev
-ORACLE_API_DOMAIN=<development-api-domain>
-ORACLE_PORT=<development-port>
-GHCR_IMAGE=ghcr.io/<owner>/<repo-or-image>
-```
-
 Recommended GitHub secrets:
 
 - `ORACLE_SSH_KEY`
 - `GHCR_TOKEN` if the image is private
+
+## Domain Shape
+
+Recommended public domain layout:
+
+- frontend: `volo.petricevicsystems.com`
+- API: `api.volo.petricevicsystems.com`
+
+This will work even if `petricevicsystems.com` is not currently serving a website, as long as:
+
+- you own the domain
+- DNS is configured
+- Cloudflare points the frontend and API records to the right targets
+
+Using subdomains is cleaner than putting the app under a path such as `petricevicsystems.com/volo`.
 
 ## Suggested Backend Container Requirements
 
@@ -333,6 +324,26 @@ To fit OracleHost cleanly, the backend container should:
 5. Lock production CORS to the real frontend and extension origins.
 6. Keep all final live values in GitHub environments or private infra notes.
 7. Hand off the repo once code and CI match the OracleHost contract.
+
+## Private Wiring Checklist
+
+These are the private values that still need to be inserted during final wiring:
+
+- `ORACLE_HOST`
+- `ORACLE_USER`
+- `ORACLE_APP_ID`
+- `ORACLE_API_DOMAIN`
+- `ORACLE_PORT`
+- `GHCR_IMAGE`
+- `ORACLE_SSH_KEY`
+- `VOLO_DATABASE_URL`
+- `VOLO_REDIS_ADDR`
+- `VOLO_REDIS_PASSWORD` if Redis is password-protected
+- `VOLO_JWT_SECRET`
+- `VOLO_CORS_ORIGINS`
+- `VOLO_GOOGLE_CLIENT_ID` if Google OAuth is enabled
+- `VOLO_GOOGLE_CLIENT_SECRET` if Google OAuth is enabled
+- `VOLO_SENTRY_DSN` if Sentry is enabled
 
 ## What Stays Private
 

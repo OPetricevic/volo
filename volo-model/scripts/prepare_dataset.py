@@ -40,9 +40,14 @@ QUERIES = [
 
 
 def load_snips_data():
-    """Load SNIPS dataset and remap to Volo intents."""
+    """Load SNIPS dataset and remap to Volo intents. Falls back gracefully."""
     print("Loading SNIPS dataset...")
-    dataset = load_dataset("snips_built_in_intents", trust_remote_code=True)
+    try:
+        dataset = load_dataset("thucdangvan020999/snips_built_in_intents")
+    except Exception as e:
+        print(f"  ⚠ Could not load SNIPS dataset: {e}")
+        print("  → Continuing with custom examples only (this is fine)")
+        return []
 
     examples = []
     for split in ["train", "test"]:

@@ -26,3 +26,10 @@ Thumbs.db
 
 # Electron
 /volo-desktop/release/
+
+# ML model files (generated via training pipeline, see volo-api/docs/ML_TRAINING.md)
+/volo-api/models/*.onnx
+/volo-model/models/volo-intent/
+/volo-model/models/onnx-export/
+/volo-model/models/onnx-quantized/
+/volo-model/models/*.onnx

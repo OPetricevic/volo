@@ -11,5 +11,6 @@ RUN apk add --no-cache ca-certificates
 WORKDIR /app
 COPY --from=builder /app/volo-api .
 COPY --from=builder /app/migrations ./migrations
+COPY --from=builder /app/models ./models
 EXPOSE 8080
 CMD ["./volo-api"]

@@ -90,6 +90,7 @@ func main() {
 
 	// Health
 	r.Get("/health", handlers.Health)
+	r.Get("/api/health", handlers.Health)
 
 	// Prometheus metrics
 	r.Handle("/metrics", promhttp.Handler())

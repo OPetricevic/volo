@@ -1,0 +1,26 @@
+{
+  "model_name": "distilbert-base-uncased",
+  "max_length": 64,
+  "labels": [
+    "search",
+    "navigate",
+    "open-and-search",
+    "open-and-play",
+    "browser-control"
+  ],
+  "label2id": {
+    "search": 0,
+    "navigate": 1,
+    "open-and-search": 2,
+    "open-and-play": 3,
+    "browser-control": 4
+  },
+  "id2label": {
+    "0": "search",
+    "1": "navigate",
+    "2": "open-and-search",
+    "3": "open-and-play",
+    "4": "browser-control"
+  },
+  "vocab_size": 30522
+}

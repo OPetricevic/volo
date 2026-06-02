@@ -1,92 +1,67 @@
 name: Deploy Backend (OracleHost)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'volo-api/**'
-      - '.github/workflows/deploy-backend-oracle.yml'
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Target environment'
-        required: true
-        default: 'dev'
-        type: choice
-        options:
-          - dev
-          - production
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/volo-api
+    inputs: {}
 
 jobs:
-  build-and-push:
+  deploy-production:
     runs-on: ubuntu-latest
+    environment: production
     permissions:
       contents: read
       packages: write
-
-    outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set image metadata
+        id: meta
+        shell: bash
+        run: |
+          IMAGE="${{ vars.GHCR_IMAGE }}"
+          TAG="${GITHUB_SHA}"
+          echo "image=${IMAGE}:${TAG}" >> "$GITHUB_OUTPUT"
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha,prefix=
-            type=raw,value=latest
-
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./volo-api
+          file: ./volo-api/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.image }}
 
-  deploy-dev:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    if: github.event.inputs.environment != 'production'
-    environment: dev
+      - name: Configure SSH
+        shell: bash
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.ORACLE_SSH_KEY }}" > ~/.ssh/oracle_deploy_key
+          chmod 600 ~/.ssh/oracle_deploy_key
+          ssh-keyscan -H "${{ vars.ORACLE_HOST }}" >> ~/.ssh/known_hosts
 
-    steps:
-      - name: Deploy to OracleHost (dev)
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ vars.ORACLE_HOST }}
-          username: ${{ vars.ORACLE_USER }}
-          key: ${{ secrets.ORACLE_SSH_KEY }}
-          script: |
-            sudo /usr/local/sbin/deploy-oracle-app ${{ vars.ORACLE_APP_ID }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+      - name: Deploy on Oracle host
+        shell: bash
+        env:
+          ORACLE_HOST: ${{ vars.ORACLE_HOST }}
+          ORACLE_USER: ${{ vars.ORACLE_USER }}
+          ORACLE_APP_ID: ${{ vars.ORACLE_APP_ID }}
+          IMAGE_REF: ${{ steps.meta.outputs.image }}
+        run: |
+          ssh -i ~/.ssh/oracle_deploy_key "${ORACLE_USER}@${ORACLE_HOST}" \
+            "sudo /usr/local/sbin/deploy-oracle-app '${ORACLE_APP_ID}' '${IMAGE_REF}'"
 
-  deploy-production:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    if: github.event.inputs.environment == 'production'
-    environment: production
-
-    steps:
-      - name: Deploy to OracleHost (production)
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ vars.ORACLE_HOST }}
-          username: ${{ vars.ORACLE_USER }}
-          key: ${{ secrets.ORACLE_SSH_KEY }}
-          script: |
-            sudo /usr/local/sbin/deploy-oracle-app ${{ vars.ORACLE_APP_ID }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+      - name: Verify API health
+        if: ${{ vars.ORACLE_API_DOMAIN != '' }}
+        shell: bash
+        env:
+          ORACLE_API_DOMAIN: ${{ vars.ORACLE_API_DOMAIN }}
+        run: |
+          curl --fail --silent --show-error "https://${ORACLE_API_DOMAIN}/api/health"

@@ -101,38 +101,8 @@ cp volo-model/models/model-config.json volo-api/models/model-config.json
 
 ## Documentation
 
-- [ ] Create `volo-docs` repo for visual HTML documentation (GitHub Pages)
-- [ ] Redesign docs site with C4 model structure + ByteByteGo visual style
-- [ ] Host on GitHub Pages: https://opetricevic.github.io/volo-docs
+- [ ] Push `volo-docs` repo to GitHub + enable GitHub Pages
 - [ ] Link from main volo README to the docs site
-
-### Docs Site Redesign Plan
-
-**Style references:**
-- ByteByteGo (bytebytego.com/guides) — clean SVG diagrams, numbered flows, color-coded
-- C4 Model (c4model.com) — zoom levels: Context → Container → Component
-- Arc42 template — structured sections (context, decisions, quality, deployment)
-- IcePanel (icepanel.io) — interactive clickable architecture diagrams
-- Example repo: github.com/bitsmuggler/arc42-c4-software-architecture-documentation-example
-
-**Pages to create/redesign:**
-1. System Context (Level 1) — Volo + users + external systems (Google, Chrome, Ollama)
-2. Container Diagram (Level 2) — Extension, Desktop, API, Model, DB, Redis
-3. Voice Command Flow — mic → wake word → parse → execute → history (numbered steps)
-4. Auth Architecture — device registration → JWT → session → revocation (flow diagram)
-5. AI Pipeline — rule-based → confidence check → DistilBERT → response (decision tree)
-6. Data Architecture — Postgres schema relationships, Redis caching strategy
-7. Deployment — VM layout, Docker containers, Caddy, monitoring (infrastructure diagram)
-8. Decisions — 16 architecture decisions (already exists, keep as-is)
-
-**Each page should have:**
-- One clear SVG diagram at the top (not ASCII, not text boxes — proper vector graphics)
-- Numbered steps explaining the flow
-- "Why this design" section with tradeoffs
-- Color-coded components (blue=extension, green=API, purple=model, orange=desktop)
-- Clickable/interactive where possible (hover for details, tabs for alternatives)
-
-**Current state:** Pages exist with content but use text-based diagrams. Need visual upgrade.
 
 ---
 

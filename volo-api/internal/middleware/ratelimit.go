@@ -51,13 +51,13 @@ func RateLimit(rdb *redis.Client, maxRequests int, window time.Duration) func(ht
 }
 
 func checkRateLimit(ctx context.Context, rdb *redis.Client, key string, max int, window time.Duration) (bool, error) {
-	now := time.Now().UnixMilli()
-	windowStart := now - window.Milliseconds()
+	now := time.Now().UnixNano()
+	windowStart := now - window.Nanoseconds()
 
 	pipe := rdb.Pipeline()
 	// Remove old entries outside the window
 	pipe.ZRemRangeByScore(ctx, key, "0", fmt.Sprintf("%d", windowStart))
-	// Add current request
+	// Add current request (use nanoseconds as both score and member for uniqueness)
 	pipe.ZAdd(ctx, key, redis.Z{Score: float64(now), Member: fmt.Sprintf("%d", now)})
 	// Count requests in window
 	countCmd := pipe.ZCard(ctx, key)

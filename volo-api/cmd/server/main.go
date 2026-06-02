@@ -35,6 +35,12 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
 	slog.SetDefault(logger)
 
+	// Warn if using default JWT secret in production
+	if cfg.Environment == "production" && cfg.JWTSecret == "dev-secret-change-in-production" {
+		slog.Error("CRITICAL: Using default JWT secret in production. Set VOLO_JWT_SECRET env var.")
+		os.Exit(1)
+	}
+
 	// Sentry
 	middleware.InitSentry(cfg.SentryDSN, cfg.Environment)
 
@@ -131,8 +137,8 @@ func main() {
 		Addr:         fmt.Sprintf(":%s", cfg.Port),
 		Handler:      r,
 		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		WriteTimeout: 60 * time.Second, // Must exceed Ollama chat timeout (30s)
+		IdleTimeout:  120 * time.Second,
 	}
 
 	// Graceful shutdown

@@ -113,10 +113,20 @@ func (s *AuthService) RegisterEmail(ctx context.Context, req model.RegisterEmail
 		if err := s.repos.User.CreateCredential(ctx, cred); err != nil {
 			return nil, fmt.Errorf("service.Auth.RegisterEmail → CreateCredential: %w", err)
 		}
-		user, _ := s.repos.User.GetByID(ctx, userID)
+		user, err := s.repos.User.GetByID(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("service.Auth.RegisterEmail → GetByID: %w", err)
+		}
+		token, err := s.issueToken(ctx, userID, nil)
+		if err != nil {
+			return nil, fmt.Errorf("service.Auth.RegisterEmail → issueToken: %w", err)
+		}
 		device, _ := s.repos.User.GetDeviceByDeviceID(ctx, req.DeviceID)
-		token, _ := s.issueToken(ctx, userID, nil)
-		return &model.AuthResponse{Token: token, User: *user, Device: *device}, nil
+		resp := &model.AuthResponse{Token: token, User: *user}
+		if device != nil {
+			resp.Device = *device
+		}
+		return resp, nil
 	}
 
 	// New user
@@ -155,9 +165,14 @@ func (s *AuthService) RegisterEmail(ctx context.Context, req model.RegisterEmail
 		CreatedAt:  now,
 		UpdatedAt:  now,
 	}
-	_ = s.repos.User.CreateDevice(ctx, device)
+	if err := s.repos.User.CreateDevice(ctx, device); err != nil {
+		return nil, fmt.Errorf("service.Auth.RegisterEmail → CreateDevice: %w", err)
+	}
 
-	token, _ := s.issueToken(ctx, user.ID, &device.ID)
+	token, err := s.issueToken(ctx, user.ID, &device.ID)
+	if err != nil {
+		return nil, fmt.Errorf("service.Auth.RegisterEmail → issueToken: %w", err)
+	}
 	return &model.AuthResponse{Token: token, User: *user, Device: *device}, nil
 }
 
@@ -267,6 +282,26 @@ func (s *AuthService) LogoutAll(ctx context.Context, userID string) error {
 		return fmt.Errorf("service.Auth.LogoutAll: %w", err)
 	}
 	// Note: Redis cache entries will expire naturally
+	return nil
+}
+
+// GetUserDevice retrieves a device only if it belongs to the specified user.
+func (s *AuthService) GetUserDevice(ctx context.Context, userID, deviceID string) (*model.Device, error) {
+	device, err := s.repos.User.GetDeviceByDeviceID(ctx, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("service.Auth.GetUserDevice: %w", err)
+	}
+	if device == nil || device.UserID != userID {
+		return nil, nil
+	}
+	return device, nil
+}
+
+// UnlinkDevice removes a device from a user's account.
+func (s *AuthService) UnlinkDevice(ctx context.Context, userID, deviceID string) error {
+	if err := s.repos.User.DeleteDevice(ctx, userID, deviceID); err != nil {
+		return fmt.Errorf("service.Auth.UnlinkDevice: %w", err)
+	}
 	return nil
 }
 

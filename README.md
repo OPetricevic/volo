@@ -150,6 +150,7 @@ This starts: Postgres (5432), Redis (6379), Go API with hot-reload (8080), Jupyt
 | [DECISIONS.md](./DECISIONS.md) | 16 architecture decisions with reasoning |
 | [DOCS.md](./DOCS.md) | Documentation index (links to all docs) |
 | [TODO.md](./TODO.md) | Current task list |
+| [ORACLEHOST_DEPLOYMENT_GUIDE.md](./volo-api/docs/ORACLEHOST_DEPLOYMENT_GUIDE.md) | OracleHost-specific deployment handoff based on the live server and platform contract |
 | [DOCS.html](./DOCS.html) | Visual documentation (open in browser) |
 | [SPEC.html](./SPEC.html) | Visual spec (open in browser) |
 

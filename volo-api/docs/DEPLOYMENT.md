@@ -1,5 +1,11 @@
 # Deployment
 
+## OracleHost Note
+
+If you are deploying Volo to the Petricevic Systems OracleHost platform, read [ORACLEHOST_DEPLOYMENT_GUIDE.md](./ORACLEHOST_DEPLOYMENT_GUIDE.md) first.
+
+This file describes a generic standalone VM layout. The live OracleHost platform uses a different app-slot, env-file, and deploy-user contract.
+
 ## Overview
 
 Everything runs on a single VM. One `docker compose up -d` brings up the full stack. Caddy handles TLS automatically via Let's Encrypt.

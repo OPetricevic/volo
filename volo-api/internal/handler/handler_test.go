@@ -37,8 +37,9 @@ func TestHealth(t *testing.T) {
 }
 
 func TestRespondError(t *testing.T) {
+	h := &Handlers{}
 	rec := httptest.NewRecorder()
-	respondError(rec, http.StatusBadRequest, "TEST_ERROR", "Something went wrong.", "internal details here")
+	h.respondError(rec, http.StatusBadRequest, "TEST_ERROR", "Something went wrong.", "internal details here")
 
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("status = %d, want 400", rec.Code)

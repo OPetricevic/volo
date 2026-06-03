@@ -71,23 +71,6 @@ func (h *Handlers) respondError(w http.ResponseWriter, status int, code, message
 	h.respond(w, status, model.Response{Error: errResp})
 }
 
-// respond is a standalone helper for contexts without Handlers (e.g. Health)
-func respond(w http.ResponseWriter, status int, body any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(body)
-}
-
-func respondError(w http.ResponseWriter, status int, code, message, internalErr string) {
-	respond(w, status, model.Response{
-		Error: &model.ErrorResponse{
-			Code:          code,
-			Message:       message,
-			InternalError: internalErr,
-		},
-	})
-}
-
 func decode(r *http.Request, v any) error {
 	return json.NewDecoder(r.Body).Decode(v)
 }

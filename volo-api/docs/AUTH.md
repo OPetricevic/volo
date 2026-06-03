@@ -109,6 +109,47 @@ POST /auth/reset-password { token, password }
 - Indexed on `token_hash` for fast lookup
 - Periodic cleanup: unused expired tokens can be purged via cron
 
+### 6. Email Verification
+
+```
+User registers with email+password
+    → Backend creates account (email_verified_at = NULL)
+    → Generates verification token (32-byte random, hashed in tokens table)
+    → Sends verification email via Resend
+    → User clicks link → POST /auth/verify-email { token }
+    → Backend validates token (unused, not expired, type = "email_verify")
+    → Sets email_verified_at = now()
+    → Marks token as used
+    → Invalidates other verification tokens for this user
+
+Resend flow (protected, rate limited):
+    → POST /auth/resend-verification
+    → Checks user has email + not already verified
+    → Rate limit: max 3 per hour
+    → Generates new token, sends email
+```
+
+### 7. Change Password
+
+```
+POST /auth/change-password { current_password, new_password }
+    → Verify current password (bcrypt compare)
+    → Validate new password (min 8, max 128, must differ from current)
+    → Hash new password → update credentials table
+    → Return success (sessions stay active — user is already authenticated)
+```
+
+### 8. Delete Account
+
+```
+DELETE /auth/account { password }
+    → Verify password (confirmation for destructive action)
+    → Soft delete user (set deleted_at)
+    → Revoke ALL sessions
+    → User is immediately logged out everywhere
+    → Data preserved for audit (deleted_at IS NOT NULL)
+```
+
 ## JWT Structure
 
 ```json

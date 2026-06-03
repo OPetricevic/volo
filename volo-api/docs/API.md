@@ -67,7 +67,128 @@ Login with email + password.
 
 ### POST /auth/google
 
-Google OAuth SSO. (Not yet implemented)
+Google OAuth SSO.
+
+**Request:**
+```json
+{
+  "code": "google-auth-code-from-popup",
+  "device_id": "ext-chrome-abc123"
+}
+```
+
+### POST /auth/forgot-password
+
+Request a password reset email. Always returns 200 (doesn't reveal if email exists).
+
+**Request:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response (200):**
+```json
+{
+  "data": { "message": "If an account with that email exists, a reset link has been sent." }
+}
+```
+
+### POST /auth/reset-password
+
+Reset password using the token from the email link.
+
+**Request:**
+```json
+{
+  "token": "base64-encoded-reset-token",
+  "password": "newpassword123"
+}
+```
+
+**Response (200):**
+```json
+{
+  "data": { "message": "Password reset successful. Please log in with your new password." }
+}
+```
+
+**Errors:** `MISSING_TOKEN`, `WEAK_PASSWORD`, `PASSWORD_TOO_LONG`, `RESET_FAILED`
+
+### POST /auth/verify-email
+
+Verify email address using the token from the verification email.
+
+**Request:**
+```json
+{
+  "token": "base64-encoded-verification-token"
+}
+```
+
+**Response (200):**
+```json
+{
+  "data": { "message": "Email verified successfully." }
+}
+```
+
+**Errors:** `MISSING_TOKEN`, `VERIFICATION_FAILED`
+
+### POST /auth/change-password 🔒
+
+Change password while logged in. Requires current password.
+
+**Request:**
+```json
+{
+  "current_password": "oldpassword123",
+  "new_password": "newpassword456"
+}
+```
+
+**Response (200):**
+```json
+{
+  "data": { "message": "Password changed successfully." }
+}
+```
+
+**Errors:** `MISSING_CURRENT_PASSWORD`, `WEAK_PASSWORD`, `PASSWORD_TOO_LONG`, `SAME_PASSWORD`, `CHANGE_PASSWORD_FAILED`
+
+### POST /auth/resend-verification 🔒
+
+Resend the email verification link. Rate limited to 3 per hour.
+
+**Response (200):**
+```json
+{
+  "data": { "message": "Verification email sent." }
+}
+```
+
+**Errors:** `NO_EMAIL`, `ALREADY_VERIFIED`, `VERIFICATION_SEND_FAILED`
+
+### DELETE /auth/account 🔒
+
+Delete account (soft delete). Requires password confirmation.
+
+**Request:**
+```json
+{
+  "password": "currentpassword123"
+}
+```
+
+**Response (200):**
+```json
+{
+  "data": { "message": "Account deleted. We're sorry to see you go." }
+}
+```
+
+**Errors:** `MISSING_PASSWORD`, `DELETE_FAILED`
 
 ### POST /auth/logout 🔒
 
@@ -76,6 +197,12 @@ Revoke current session.
 ### POST /auth/logout-all 🔒
 
 Revoke all sessions for the user.
+
+### DELETE /auth/device/{deviceID} 🔒
+
+Unlink a device from the account. Only the device owner can unlink.
+
+**Errors:** `MISSING_DEVICE_ID`, `DEVICE_NOT_FOUND`, `UNLINK_FAILED`
 
 ---
 
@@ -161,6 +288,51 @@ Get paginated command history.
 
 Clear all command history for the user.
 
+### GET /history/context 🔒
+
+Get a formatted text summary of recent commands (used internally for LLM context).
+
+---
+
+## Chat (Ollama AI)
+
+### POST /chat 🔒
+
+Send a message to Volo AI (powered by local Ollama + Gemma 2B).
+
+**Request:**
+```json
+{
+  "message": "What did I search yesterday?",
+  "conversation_id": "uuid (optional)"
+}
+```
+
+**Response (200):**
+```json
+{
+  "data": {
+    "reply": "Yesterday you searched for:\n• react hooks tutorial (9:14am)\n• golang concurrency (2:30pm)",
+    "sources": [
+      { "id": "cmd-uuid", "transcript": "search react hooks tutorial", "executed_at": "2026-06-01T09:14:00Z" }
+    ]
+  }
+}
+```
+
+**Errors:** `EMPTY_MESSAGE`, `MESSAGE_TOO_LONG`, `CHAT_FAILED` (Ollama not running)
+
+### GET /chat/status 🔒
+
+Check if Ollama is running and available.
+
+**Response (200):**
+```json
+{
+  "data": { "ollama_running": true, "model": "gemma2:2b" }
+}
+```
+
 ---
 
 ## Settings
@@ -201,15 +373,33 @@ Update settings.
 |------|------|---------|
 | INVALID_REQUEST | 400 | Malformed request body |
 | MISSING_DEVICE_ID | 400 | Device ID required |
-| MISSING_FIELDS | 400 | Required fields missing |
+| MISSING_EMAIL | 400 | Email required |
+| INVALID_EMAIL | 400 | Invalid email format |
 | WEAK_PASSWORD | 400 | Password < 8 chars |
+| PASSWORD_TOO_LONG | 400 | Password > 128 chars |
+| SAME_PASSWORD | 400 | New password same as current |
+| MISSING_TOKEN | 400 | Token required |
+| MISSING_CURRENT_PASSWORD | 400 | Current password required |
+| MISSING_PASSWORD | 400 | Password required for confirmation |
 | EMPTY_TRANSCRIPT | 400 | Transcript cannot be empty |
+| TRANSCRIPT_TOO_LONG | 400 | Transcript > 500 chars |
+| EMPTY_MESSAGE | 400 | Chat message cannot be empty |
+| MESSAGE_TOO_LONG | 400 | Chat message > 2000 chars |
+| NO_EMAIL | 400 | No email on account |
+| ALREADY_VERIFIED | 400 | Email already verified |
+| DEVICE_NAME_TOO_LONG | 400 | Device name > 100 chars |
 | UNAUTHORIZED | 401 | Missing or invalid token |
 | INVALID_CREDENTIALS | 401 | Wrong email/password |
+| DEVICE_NOT_FOUND | 404 | Device not found or not owned |
 | RATE_LIMITED | 429 | Too many requests (60/min) |
-| INTERNAL_ERROR | 500 | Unexpected server error |
+| GOOGLE_NOT_CONFIGURED | 503 | Server missing Google OAuth config |
 | REGISTRATION_FAILED | 500 | Failed to create account |
 | COMMAND_PARSE_FAILED | 500 | Failed to process command |
+| RESET_FAILED | 400 | Invalid/expired reset token |
+| VERIFICATION_FAILED | 400 | Invalid/expired verification token |
+| CHANGE_PASSWORD_FAILED | 400 | Current password incorrect |
+| DELETE_FAILED | 400 | Password incorrect for deletion |
+| CHAT_FAILED | 500 | Ollama not running |
 
 ---
 

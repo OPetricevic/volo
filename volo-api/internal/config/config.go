@@ -15,6 +15,8 @@ type Config struct {
 	GoogleClientSecret string
 	SentryDSN          string
 	Environment        string
+	ResendAPIKey       string
+	ResetPasswordURL   string
 }
 
 func Load() *Config {
@@ -31,6 +33,8 @@ func Load() *Config {
 		GoogleClientSecret: getEnvAny([]string{"VOLO_GOOGLE_CLIENT_SECRET", "GOOGLE_CLIENT_SECRET"}, ""),
 		SentryDSN:          getEnvAny([]string{"VOLO_SENTRY_DSN", "SENTRY_DSN"}, ""),
 		Environment:        getEnvAny([]string{"VOLO_ENVIRONMENT", "APP_ENV"}, "development"),
+		ResendAPIKey:       getEnvAny([]string{"VOLO_RESEND_API_KEY", "RESEND_API_KEY"}, ""),
+		ResetPasswordURL:   getEnvAny([]string{"VOLO_RESET_PASSWORD_URL", "RESET_PASSWORD_URL"}, "http://localhost:5173/reset"),
 	}
 }
 

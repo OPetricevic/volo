@@ -18,6 +18,7 @@ export function ChatView() {
   }, [messages]);
 
   useEffect(() => {
+    if (!window.volo?.onActivateVoice) return;
     const cleanup = window.volo.onActivateVoice(() => {
       console.log("[Volo] Voice activated via hotkey");
     });

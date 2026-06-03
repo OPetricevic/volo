@@ -2,9 +2,12 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -340,4 +343,83 @@ func (s *AuthService) issueToken(ctx context.Context, userID string, deviceID *s
 func hashToken(token string) string {
 	h := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(h[:])
+}
+
+// ForgotPassword generates a reset token and returns it (caller sends the email).
+func (s *AuthService) ForgotPassword(ctx context.Context, email string) (rawToken string, err error) {
+	// Find user by email
+	user, err := s.repos.User.GetByEmail(ctx, email)
+	if err != nil {
+		// Don't reveal whether email exists — return nil error
+		slog.Info("forgot password for unknown email", "email", email)
+		return "", nil
+	}
+
+	// Rate limit: max 3 resets per hour per user
+	count, err := s.repos.Token.CountRecentByUserAndType(ctx, user.ID, "password_reset", time.Now().Add(-1*time.Hour))
+	if err != nil {
+		return "", fmt.Errorf("service.Auth.ForgotPassword → CountRecent: %w", err)
+	}
+	if count >= 3 {
+		slog.Warn("password reset rate limited", "user_id", user.ID)
+		return "", nil // Silent — don't reveal rate limiting to the client
+	}
+
+	// Generate random token
+	tokenBytes := make([]byte, 32)
+	if _, err := rand.Read(tokenBytes); err != nil {
+		return "", fmt.Errorf("service.Auth.ForgotPassword → rand: %w", err)
+	}
+	rawToken = base64.URLEncoding.EncodeToString(tokenBytes)
+
+	// Store hashed token
+	token := &model.Token{
+		ID:        uuid.New().String(),
+		UserID:    user.ID,
+		Type:      "password_reset",
+		TokenHash: hashToken(rawToken),
+		ExpiresAt: time.Now().Add(1 * time.Hour),
+		CreatedAt: time.Now(),
+	}
+	if err := s.repos.Token.Create(ctx, token); err != nil {
+		return "", fmt.Errorf("service.Auth.ForgotPassword → Create: %w", err)
+	}
+
+	return rawToken, nil
+}
+
+// ResetPassword validates a reset token and updates the password.
+func (s *AuthService) ResetPassword(ctx context.Context, rawToken, newPassword string) error {
+	// Find token
+	tokenHash := hashToken(rawToken)
+	token, err := s.repos.Token.GetByHash(ctx, tokenHash)
+	if err != nil {
+		return fmt.Errorf("service.Auth.ResetPassword: invalid or expired token")
+	}
+
+	// Hash new password
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("service.Auth.ResetPassword → hash: %w", err)
+	}
+
+	// Update credential
+	hashStr := string(hash)
+	if err := s.repos.User.UpdatePasswordHash(ctx, token.UserID, hashStr); err != nil {
+		return fmt.Errorf("service.Auth.ResetPassword → UpdatePassword: %w", err)
+	}
+
+	// Mark token as used
+	if err := s.repos.Token.MarkUsed(ctx, token.ID); err != nil {
+		return fmt.Errorf("service.Auth.ResetPassword → MarkUsed: %w", err)
+	}
+
+	// Invalidate all other reset tokens for this user
+	_ = s.repos.Token.InvalidateAllForUser(ctx, token.UserID, "password_reset")
+
+	// Revoke all sessions (force re-login everywhere)
+	_ = s.repos.Session.RevokeAllForUser(ctx, token.UserID)
+
+	slog.Info("password reset successful", "user_id", token.UserID)
+	return nil
 }

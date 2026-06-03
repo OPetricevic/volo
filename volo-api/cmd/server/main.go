@@ -108,6 +108,8 @@ func main() {
 		r.Post("/auth/google", handlers.GoogleAuth)
 		r.Post("/auth/register", handlers.RegisterEmail)
 		r.Post("/auth/login", handlers.LoginEmail)
+		r.Post("/auth/forgot-password", handlers.ForgotPassword)
+		r.Post("/auth/reset-password", handlers.ResetPassword)
 
 		// Protected (JWT required)
 		r.Group(func(r chi.Router) {

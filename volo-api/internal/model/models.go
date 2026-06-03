@@ -74,6 +74,17 @@ type Pattern struct {
 	UpdatedAt   time.Time      `json:"updated_at"`
 }
 
+// Token represents a generic token (password reset, email verify, invite).
+type Token struct {
+	ID        string     `json:"id"`
+	UserID    string     `json:"user_id"`
+	Type      string     `json:"type"` // "password_reset", "email_verify", "invite"
+	TokenHash string     `json:"-"`    // never serialized
+	ExpiresAt time.Time  `json:"expires_at"`
+	UsedAt    *time.Time `json:"used_at,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
 // AuditLog represents a tracked action.
 type AuditLog struct {
 	ID         string                 `json:"id"`

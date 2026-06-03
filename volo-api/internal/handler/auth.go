@@ -174,3 +174,63 @@ func extractToken(r *http.Request) string {
 	}
 	return ""
 }
+
+func (h *Handlers) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var req model.ForgotPasswordRequest
+	if err := decode(r, &req); err != nil {
+		h.respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body.", err.Error())
+		return
+	}
+
+	if errResp := middleware.ValidateEmail(req.Email); errResp != nil {
+		h.respond(w, http.StatusBadRequest, model.Response{Error: errResp})
+		return
+	}
+
+	rawToken, err := h.services.Auth.ForgotPassword(r.Context(), req.Email)
+	if err != nil {
+		h.respondError(w, http.StatusInternalServerError, "FORGOT_PASSWORD_FAILED", "Something went wrong. Please try again.", err.Error())
+		return
+	}
+
+	// Send email (if token was generated — won't be if email doesn't exist or rate limited)
+	if rawToken != "" {
+		go func() {
+			if err := h.services.Email.SendPasswordReset(req.Email, rawToken, h.cfg.ResetPasswordURL); err != nil {
+				middleware.CaptureError(err, map[string]string{"action": "send_password_reset"})
+			}
+		}()
+	}
+
+	// Always return 200 — don't reveal if email exists
+	h.respond(w, http.StatusOK, model.Response{
+		Data: map[string]string{"message": "If an account with that email exists, a reset link has been sent."},
+	})
+}
+
+func (h *Handlers) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var req model.ResetPasswordRequest
+	if err := decode(r, &req); err != nil {
+		h.respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body.", err.Error())
+		return
+	}
+
+	if req.Token == "" {
+		h.respondError(w, http.StatusBadRequest, "MISSING_TOKEN", "Reset token is required.", "")
+		return
+	}
+
+	if errResp := middleware.ValidatePassword(req.Password); errResp != nil {
+		h.respond(w, http.StatusBadRequest, model.Response{Error: errResp})
+		return
+	}
+
+	if err := h.services.Auth.ResetPassword(r.Context(), req.Token, req.Password); err != nil {
+		h.respondError(w, http.StatusBadRequest, "RESET_FAILED", "Invalid or expired reset link. Please request a new one.", err.Error())
+		return
+	}
+
+	h.respond(w, http.StatusOK, model.Response{
+		Data: map[string]string{"message": "Password reset successful. Please log in with your new password."},
+	})
+}

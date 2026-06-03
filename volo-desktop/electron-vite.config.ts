@@ -5,7 +5,6 @@ import { resolve } from "path";
 export default defineConfig({
   main: {
     build: {
-      outDir: "dist/main",
       rollupOptions: {
         input: resolve(__dirname, "src/main/index.ts"),
       },
@@ -13,16 +12,18 @@ export default defineConfig({
   },
   preload: {
     build: {
-      outDir: "dist/preload",
       rollupOptions: {
         input: resolve(__dirname, "src/preload/index.ts"),
+        output: {
+          format: "cjs",
+          entryFileNames: "[name].js",
+        },
       },
     },
   },
   renderer: {
     root: "src/renderer",
     build: {
-      outDir: "dist/renderer",
       rollupOptions: {
         input: resolve(__dirname, "src/renderer/index.html"),
       },

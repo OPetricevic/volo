@@ -2,7 +2,7 @@
     "name": "volo-desktop",
     "version": "0.1.0",
     "description": "Volo — Voice-first browser assistant desktop app",
-    "main": "dist/main/index.js",
+    "main": "out/main/index.js",
     "private": true,
     "type": "module",
     "scripts": {

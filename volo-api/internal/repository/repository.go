@@ -9,6 +9,7 @@ type Repositories struct {
 	Session  *SessionRepository
 	Audit    *AuditRepository
 	Settings *SettingsRepository
+	Token    *TokenRepository
 }
 
 // New creates all repositories with the given connection pool.
@@ -19,5 +20,6 @@ func New(pool *pgxpool.Pool) *Repositories {
 		Session:  NewSessionRepository(pool),
 		Audit:    NewAuditRepository(pool),
 		Settings: NewSettingsRepository(pool),
+		Token:    NewTokenRepository(pool),
 	}
 }

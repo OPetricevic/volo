@@ -44,3 +44,14 @@ type UpdateSettingsRequest struct {
 	WakeWord *string `json:"wake_word,omitempty"`
 	Language *string `json:"language,omitempty"`
 }
+
+// --- Password Reset ---
+
+type ForgotPasswordRequest struct {
+	Email string `json:"email"`
+}
+
+type ResetPasswordRequest struct {
+	Token    string `json:"token"`
+	Password string `json:"password"`
+}

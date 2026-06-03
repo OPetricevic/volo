@@ -157,3 +157,15 @@ func (r *UserRepository) DeleteDevice(ctx context.Context, userID, deviceID stri
 	}
 	return nil
 }
+
+// UpdatePasswordHash updates the password hash for a user's password credential.
+func (r *UserRepository) UpdatePasswordHash(ctx context.Context, userID, passwordHash string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE credentials SET password_hash = $1, updated_at = now()
+		 WHERE user_id = $2 AND provider = 'password'`, passwordHash, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("repository.User.UpdatePasswordHash: %w", err)
+	}
+	return nil
+}

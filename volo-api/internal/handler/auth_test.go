@@ -179,3 +179,143 @@ func TestGoogleAuth_NotConfigured(t *testing.T) {
 		t.Errorf("expected GOOGLE_NOT_CONFIGURED, got %v", resp.Error)
 	}
 }
+
+// --- Password Reset Handler Tests ---
+
+func TestForgotPassword_MissingEmail(t *testing.T) {
+	h := &Handlers{}
+
+	body := bytes.NewBufferString(`{"email":""}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/forgot-password", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	h.ForgotPassword(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+
+	var resp model.Response
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Error == nil || resp.Error.Code != "MISSING_EMAIL" {
+		t.Errorf("expected MISSING_EMAIL, got %v", resp.Error)
+	}
+}
+
+func TestForgotPassword_InvalidEmail(t *testing.T) {
+	h := &Handlers{}
+
+	body := bytes.NewBufferString(`{"email":"not-an-email"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/forgot-password", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	h.ForgotPassword(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+
+	var resp model.Response
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Error == nil || resp.Error.Code != "INVALID_EMAIL" {
+		t.Errorf("expected INVALID_EMAIL, got %v", resp.Error)
+	}
+}
+
+func TestForgotPassword_InvalidJSON(t *testing.T) {
+	h := &Handlers{}
+
+	body := bytes.NewBufferString(`{broken`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/forgot-password", body)
+	rec := httptest.NewRecorder()
+
+	h.ForgotPassword(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+}
+
+func TestResetPassword_MissingToken(t *testing.T) {
+	h := &Handlers{}
+
+	body := bytes.NewBufferString(`{"token":"","password":"newpassword123"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/reset-password", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	h.ResetPassword(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+
+	var resp model.Response
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Error == nil || resp.Error.Code != "MISSING_TOKEN" {
+		t.Errorf("expected MISSING_TOKEN, got %v", resp.Error)
+	}
+}
+
+func TestResetPassword_WeakPassword(t *testing.T) {
+	h := &Handlers{}
+
+	body := bytes.NewBufferString(`{"token":"valid-token","password":"short"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/reset-password", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	h.ResetPassword(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+
+	var resp model.Response
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Error == nil || resp.Error.Code != "WEAK_PASSWORD" {
+		t.Errorf("expected WEAK_PASSWORD, got %v", resp.Error)
+	}
+}
+
+func TestResetPassword_InvalidJSON(t *testing.T) {
+	h := &Handlers{}
+
+	body := bytes.NewBufferString(`{broken`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/reset-password", body)
+	rec := httptest.NewRecorder()
+
+	h.ResetPassword(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+}
+
+func TestResetPassword_PasswordTooLong(t *testing.T) {
+	h := &Handlers{}
+
+	longPassword := ""
+	for i := 0; i < 200; i++ {
+		longPassword += "a"
+	}
+	bodyStr := `{"token":"valid-token","password":"` + longPassword + `"}`
+	body := bytes.NewBufferString(bodyStr)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/reset-password", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	h.ResetPassword(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+
+	var resp model.Response
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Error == nil || resp.Error.Code != "PASSWORD_TOO_LONG" {
+		t.Errorf("expected PASSWORD_TOO_LONG, got %v", resp.Error)
+	}
+}

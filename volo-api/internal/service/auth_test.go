@@ -40,3 +40,41 @@ func TestHashToken_NotEmpty(t *testing.T) {
 		t.Errorf("expected hash length 64 for empty input, got %d", len(hash))
 	}
 }
+
+// --- Password Reset Service Tests ---
+
+func TestForgotPassword_TokenHashIs64Chars(t *testing.T) {
+	// Verify that any raw token produces a 64-char SHA-256 hex hash
+	rawToken := "dGVzdC10b2tlbi12YWx1ZS1mb3ItcmVzZXQ="
+	hash := hashToken(rawToken)
+	if len(hash) != 64 {
+		t.Errorf("token hash length = %d, want 64", len(hash))
+	}
+}
+
+func TestForgotPassword_TokenHashDeterministic(t *testing.T) {
+	// Same raw token always produces the same hash (lookup consistency)
+	raw := "base64-encoded-reset-token-value"
+	hash1 := hashToken(raw)
+	hash2 := hashToken(raw)
+	if hash1 != hash2 {
+		t.Error("reset token hash not deterministic")
+	}
+}
+
+func TestForgotPassword_DifferentTokensDifferentHashes(t *testing.T) {
+	hash1 := hashToken("token-for-user-a")
+	hash2 := hashToken("token-for-user-b")
+	if hash1 == hash2 {
+		t.Error("different reset tokens should not produce same hash")
+	}
+}
+
+func TestForgotPassword_EmptyTokenStillHashes(t *testing.T) {
+	// Even an empty string should hash to a valid 64-char hex
+	// (edge case protection — should never happen in practice)
+	hash := hashToken("")
+	if len(hash) != 64 {
+		t.Errorf("empty token hash length = %d, want 64", len(hash))
+	}
+}

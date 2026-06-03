@@ -4,14 +4,15 @@ import "time"
 
 // User represents a user identity.
 type User struct {
-	ID          string     `json:"id"`
-	DisplayName *string    `json:"display_name,omitempty"`
-	Email       *string    `json:"email,omitempty"`
-	AvatarURL   *string    `json:"avatar_url,omitempty"`
-	Role        string     `json:"role"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	DeletedAt   *time.Time `json:"-"`
+	ID              string     `json:"id"`
+	DisplayName     *string    `json:"display_name,omitempty"`
+	Email           *string    `json:"email,omitempty"`
+	AvatarURL       *string    `json:"avatar_url,omitempty"`
+	Role            string     `json:"role"`
+	EmailVerifiedAt *time.Time `json:"email_verified_at,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	DeletedAt       *time.Time `json:"-"`
 }
 
 // Credential represents an auth method for a user.

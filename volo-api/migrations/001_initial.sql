@@ -23,6 +23,7 @@ CREATE TABLE users (
     email TEXT UNIQUE,
     avatar_url TEXT,
     role TEXT NOT NULL DEFAULT 'user',
+    email_verified_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at TIMESTAMPTZ
@@ -121,6 +122,20 @@ CREATE TABLE audit_logs (
 
 CREATE INDEX idx_audit_user ON audit_logs(user_id, created_at DESC);
 CREATE INDEX idx_audit_action ON audit_logs(action, created_at DESC);
+
+-- Tokens (password reset, email verification, invites)
+CREATE TABLE tokens (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,              -- 'password_reset', 'email_verify', 'invite'
+    token_hash TEXT NOT NULL,        -- SHA-256 of the raw token
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,            -- NULL until consumed
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_tokens_hash ON tokens(token_hash) WHERE used_at IS NULL;
+CREATE INDEX idx_tokens_user_type ON tokens(user_id, type, created_at DESC);
 
 -- Seed lookup data
 INSERT INTO action_types (name) VALUES

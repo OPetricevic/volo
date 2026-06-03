@@ -319,3 +319,182 @@ func TestResetPassword_PasswordTooLong(t *testing.T) {
 		t.Errorf("expected PASSWORD_TOO_LONG, got %v", resp.Error)
 	}
 }
+
+// --- Email Verification Handler Tests ---
+
+func TestVerifyEmail_MissingToken(t *testing.T) {
+	h := &Handlers{}
+
+	body := bytes.NewBufferString(`{"token":""}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/verify-email", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	h.VerifyEmail(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+
+	var resp model.Response
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Error == nil || resp.Error.Code != "MISSING_TOKEN" {
+		t.Errorf("expected MISSING_TOKEN, got %v", resp.Error)
+	}
+}
+
+func TestVerifyEmail_InvalidJSON(t *testing.T) {
+	h := &Handlers{}
+
+	body := bytes.NewBufferString(`{broken`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/verify-email", body)
+	rec := httptest.NewRecorder()
+
+	h.VerifyEmail(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+}
+
+// --- Change Password Handler Tests ---
+
+func TestChangePassword_MissingCurrentPassword(t *testing.T) {
+	h := &Handlers{}
+
+	body := bytes.NewBufferString(`{"current_password":"","new_password":"newpass123"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/change-password", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	h.ChangePassword(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+
+	var resp model.Response
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Error == nil || resp.Error.Code != "MISSING_CURRENT_PASSWORD" {
+		t.Errorf("expected MISSING_CURRENT_PASSWORD, got %v", resp.Error)
+	}
+}
+
+func TestChangePassword_WeakNewPassword(t *testing.T) {
+	h := &Handlers{}
+
+	body := bytes.NewBufferString(`{"current_password":"oldpass123","new_password":"short"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/change-password", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	h.ChangePassword(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+
+	var resp model.Response
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Error == nil || resp.Error.Code != "WEAK_PASSWORD" {
+		t.Errorf("expected WEAK_PASSWORD, got %v", resp.Error)
+	}
+}
+
+func TestChangePassword_SamePassword(t *testing.T) {
+	h := &Handlers{}
+
+	body := bytes.NewBufferString(`{"current_password":"samepass123","new_password":"samepass123"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/change-password", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	h.ChangePassword(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+
+	var resp model.Response
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Error == nil || resp.Error.Code != "SAME_PASSWORD" {
+		t.Errorf("expected SAME_PASSWORD, got %v", resp.Error)
+	}
+}
+
+func TestChangePassword_InvalidJSON(t *testing.T) {
+	h := &Handlers{}
+
+	body := bytes.NewBufferString(`{broken`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/change-password", body)
+	rec := httptest.NewRecorder()
+
+	h.ChangePassword(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+}
+
+func TestChangePassword_NewPasswordTooLong(t *testing.T) {
+	h := &Handlers{}
+
+	longPassword := ""
+	for i := 0; i < 200; i++ {
+		longPassword += "x"
+	}
+	bodyStr := `{"current_password":"oldpass123","new_password":"` + longPassword + `"}`
+	body := bytes.NewBufferString(bodyStr)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/change-password", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	h.ChangePassword(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+
+	var resp model.Response
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Error == nil || resp.Error.Code != "PASSWORD_TOO_LONG" {
+		t.Errorf("expected PASSWORD_TOO_LONG, got %v", resp.Error)
+	}
+}
+
+// --- Delete Account Handler Tests ---
+
+func TestDeleteAccount_MissingPassword(t *testing.T) {
+	h := &Handlers{}
+
+	body := bytes.NewBufferString(`{"password":""}`)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/account", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	h.DeleteAccount(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+
+	var resp model.Response
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Error == nil || resp.Error.Code != "MISSING_PASSWORD" {
+		t.Errorf("expected MISSING_PASSWORD, got %v", resp.Error)
+	}
+}
+
+func TestDeleteAccount_InvalidJSON(t *testing.T) {
+	h := &Handlers{}
+
+	body := bytes.NewBufferString(`{broken`)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/account", body)
+	rec := httptest.NewRecorder()
+
+	h.DeleteAccount(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+}

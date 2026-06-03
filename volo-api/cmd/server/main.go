@@ -110,6 +110,7 @@ func main() {
 		r.Post("/auth/login", handlers.LoginEmail)
 		r.Post("/auth/forgot-password", handlers.ForgotPassword)
 		r.Post("/auth/reset-password", handlers.ResetPassword)
+		r.Post("/auth/verify-email", handlers.VerifyEmail)
 
 		// Protected (JWT required)
 		r.Group(func(r chi.Router) {
@@ -130,6 +131,9 @@ func main() {
 
 			r.Post("/auth/logout", handlers.Logout)
 			r.Post("/auth/logout-all", handlers.LogoutAll)
+			r.Post("/auth/change-password", handlers.ChangePassword)
+			r.Post("/auth/resend-verification", handlers.ResendVerification)
+			r.Delete("/auth/account", handlers.DeleteAccount)
 			r.Delete("/auth/device/{deviceID}", handlers.UnlinkDevice)
 		})
 	})

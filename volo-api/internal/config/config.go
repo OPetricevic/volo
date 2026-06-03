@@ -17,6 +17,7 @@ type Config struct {
 	Environment        string
 	ResendAPIKey       string
 	ResetPasswordURL   string
+	VerifyEmailURL     string
 }
 
 func Load() *Config {
@@ -35,6 +36,7 @@ func Load() *Config {
 		Environment:        getEnvAny([]string{"VOLO_ENVIRONMENT", "APP_ENV"}, "development"),
 		ResendAPIKey:       getEnvAny([]string{"VOLO_RESEND_API_KEY", "RESEND_API_KEY"}, ""),
 		ResetPasswordURL:   getEnvAny([]string{"VOLO_RESET_PASSWORD_URL", "RESET_PASSWORD_URL"}, "http://localhost:5173/reset"),
+		VerifyEmailURL:     getEnvAny([]string{"VOLO_VERIFY_EMAIL_URL", "VERIFY_EMAIL_URL"}, "http://localhost:5173/verify"),
 	}
 }
 

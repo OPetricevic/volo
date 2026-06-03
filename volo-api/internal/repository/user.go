@@ -31,9 +31,9 @@ func (r *UserRepository) Create(ctx context.Context, user *model.User) error {
 func (r *UserRepository) GetByID(ctx context.Context, id string) (*model.User, error) {
 	var user model.User
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, display_name, email, avatar_url, role, created_at, updated_at
+		`SELECT id, display_name, email, avatar_url, role, email_verified_at, created_at, updated_at
 		 FROM users WHERE id = $1 AND deleted_at IS NULL`, id,
-	).Scan(&user.ID, &user.DisplayName, &user.Email, &user.AvatarURL, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+	).Scan(&user.ID, &user.DisplayName, &user.Email, &user.AvatarURL, &user.Role, &user.EmailVerifiedAt, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("repository.User.GetByID: %w", err)
 	}
@@ -43,9 +43,9 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (*model.User, e
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*model.User, error) {
 	var user model.User
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, display_name, email, avatar_url, role, created_at, updated_at
+		`SELECT id, display_name, email, avatar_url, role, email_verified_at, created_at, updated_at
 		 FROM users WHERE email = $1 AND deleted_at IS NULL`, email,
-	).Scan(&user.ID, &user.DisplayName, &user.Email, &user.AvatarURL, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+	).Scan(&user.ID, &user.DisplayName, &user.Email, &user.AvatarURL, &user.Role, &user.EmailVerifiedAt, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("repository.User.GetByEmail: %w", err)
 	}
@@ -166,6 +166,28 @@ func (r *UserRepository) UpdatePasswordHash(ctx context.Context, userID, passwor
 	)
 	if err != nil {
 		return fmt.Errorf("repository.User.UpdatePasswordHash: %w", err)
+	}
+	return nil
+}
+
+// VerifyEmail sets the email_verified_at timestamp.
+func (r *UserRepository) VerifyEmail(ctx context.Context, userID string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE users SET email_verified_at = now(), updated_at = now() WHERE id = $1`, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("repository.User.VerifyEmail: %w", err)
+	}
+	return nil
+}
+
+// SoftDelete marks a user as deleted.
+func (r *UserRepository) SoftDelete(ctx context.Context, userID string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE users SET deleted_at = now(), updated_at = now() WHERE id = $1`, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("repository.User.SoftDelete: %w", err)
 	}
 	return nil
 }

@@ -55,3 +55,26 @@ type ResetPasswordRequest struct {
 	Token    string `json:"token"`
 	Password string `json:"password"`
 }
+
+// --- Password Change ---
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
+// --- Email Verification ---
+
+type VerifyEmailRequest struct {
+	Token string `json:"token"`
+}
+
+type ResendVerificationRequest struct {
+	Email string `json:"email"`
+}
+
+// --- Account Deletion ---
+
+type DeleteAccountRequest struct {
+	Password string `json:"password"` // Require password confirmation
+}

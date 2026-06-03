@@ -288,6 +288,15 @@ func (s *AuthService) LogoutAll(ctx context.Context, userID string) error {
 	return nil
 }
 
+// GetUserByID retrieves a user by their ID.
+func (s *AuthService) GetUserByID(ctx context.Context, userID string) (*model.User, error) {
+	user, err := s.repos.User.GetByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("service.Auth.GetUserByID: %w", err)
+	}
+	return user, nil
+}
+
 // GetUserDevice retrieves a device only if it belongs to the specified user.
 func (s *AuthService) GetUserDevice(ctx context.Context, userID, deviceID string) (*model.Device, error) {
 	device, err := s.repos.User.GetDeviceByDeviceID(ctx, deviceID)
@@ -421,5 +430,118 @@ func (s *AuthService) ResetPassword(ctx context.Context, rawToken, newPassword s
 	_ = s.repos.Session.RevokeAllForUser(ctx, token.UserID)
 
 	slog.Info("password reset successful", "user_id", token.UserID)
+	return nil
+}
+
+// SendVerificationEmail generates an email verification token and returns it.
+func (s *AuthService) SendVerificationEmail(ctx context.Context, userID, email string) (string, error) {
+	// Rate limit: max 3 per hour
+	count, err := s.repos.Token.CountRecentByUserAndType(ctx, userID, "email_verify", time.Now().Add(-1*time.Hour))
+	if err != nil {
+		return "", fmt.Errorf("service.Auth.SendVerificationEmail → CountRecent: %w", err)
+	}
+	if count >= 3 {
+		return "", nil // Silent rate limit
+	}
+
+	// Generate token
+	tokenBytes := make([]byte, 32)
+	if _, err := rand.Read(tokenBytes); err != nil {
+		return "", fmt.Errorf("service.Auth.SendVerificationEmail → rand: %w", err)
+	}
+	rawToken := base64.URLEncoding.EncodeToString(tokenBytes)
+
+	token := &model.Token{
+		ID:        uuid.New().String(),
+		UserID:    userID,
+		Type:      "email_verify",
+		TokenHash: hashToken(rawToken),
+		ExpiresAt: time.Now().Add(24 * time.Hour), // 24 hours for email verification
+		CreatedAt: time.Now(),
+	}
+	if err := s.repos.Token.Create(ctx, token); err != nil {
+		return "", fmt.Errorf("service.Auth.SendVerificationEmail → Create: %w", err)
+	}
+
+	return rawToken, nil
+}
+
+// VerifyEmail validates a verification token and marks the user's email as verified.
+func (s *AuthService) VerifyEmail(ctx context.Context, rawToken string) error {
+	tokenHash := hashToken(rawToken)
+	token, err := s.repos.Token.GetByHash(ctx, tokenHash)
+	if err != nil {
+		return fmt.Errorf("service.Auth.VerifyEmail: invalid or expired token")
+	}
+	if token.Type != "email_verify" {
+		return fmt.Errorf("service.Auth.VerifyEmail: invalid token type")
+	}
+
+	// Mark email as verified
+	if err := s.repos.User.VerifyEmail(ctx, token.UserID); err != nil {
+		return fmt.Errorf("service.Auth.VerifyEmail → VerifyEmail: %w", err)
+	}
+
+	// Mark token as used
+	if err := s.repos.Token.MarkUsed(ctx, token.ID); err != nil {
+		return fmt.Errorf("service.Auth.VerifyEmail → MarkUsed: %w", err)
+	}
+
+	// Invalidate other verification tokens for this user
+	_ = s.repos.Token.InvalidateAllForUser(ctx, token.UserID, "email_verify")
+
+	slog.Info("email verified", "user_id", token.UserID)
+	return nil
+}
+
+// ChangePassword validates the current password and updates to the new one.
+func (s *AuthService) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
+	// Get current credential
+	cred, err := s.repos.User.GetCredentialByUserAndProvider(ctx, userID, "password")
+	if err != nil || cred.PasswordHash == nil {
+		return fmt.Errorf("service.Auth.ChangePassword: no password credential found")
+	}
+
+	// Verify current password
+	if err := bcrypt.CompareHashAndPassword([]byte(*cred.PasswordHash), []byte(currentPassword)); err != nil {
+		return fmt.Errorf("service.Auth.ChangePassword: current password is incorrect")
+	}
+
+	// Hash new password
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("service.Auth.ChangePassword → hash: %w", err)
+	}
+
+	// Update
+	if err := s.repos.User.UpdatePasswordHash(ctx, userID, string(hash)); err != nil {
+		return fmt.Errorf("service.Auth.ChangePassword → Update: %w", err)
+	}
+
+	slog.Info("password changed", "user_id", userID)
+	return nil
+}
+
+// DeleteAccount soft-deletes the user after verifying their password.
+func (s *AuthService) DeleteAccount(ctx context.Context, userID, password string) error {
+	// Verify password (require confirmation for destructive action)
+	cred, err := s.repos.User.GetCredentialByUserAndProvider(ctx, userID, "password")
+	if err != nil || cred.PasswordHash == nil {
+		return fmt.Errorf("service.Auth.DeleteAccount: no password credential found")
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(*cred.PasswordHash), []byte(password)); err != nil {
+		return fmt.Errorf("service.Auth.DeleteAccount: incorrect password")
+	}
+
+	// Soft delete user
+	if err := s.repos.User.SoftDelete(ctx, userID); err != nil {
+		return fmt.Errorf("service.Auth.DeleteAccount → SoftDelete: %w", err)
+	}
+
+	// Revoke all sessions
+	_ = s.repos.Session.RevokeAllForUser(ctx, userID)
+
+	slog.Info("account deleted", "user_id", userID)
 	return nil
 }

@@ -60,6 +60,31 @@ func (s *EmailService) SendPasswordReset(to, resetToken, resetURL string) error 
 	return s.send(to, subject, html)
 }
 
+// SendEmailVerification sends a verification email.
+func (s *EmailService) SendEmailVerification(to, verifyToken, verifyURL string) error {
+	link := fmt.Sprintf("%s?token=%s", verifyURL, verifyToken)
+
+	subject := "Verify your Volo email"
+	html := fmt.Sprintf(`
+		<div style="font-family: -apple-system, system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
+			<h2 style="color: #1a1a2e; margin-bottom: 16px;">Verify your email</h2>
+			<p style="color: #4a4a4a; line-height: 1.6;">
+				Thanks for creating a Volo account. Please verify your email address by clicking the button below.
+			</p>
+			<a href="%s" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 500; margin: 24px 0;">
+				Verify Email
+			</a>
+			<p style="color: #888; font-size: 13px; line-height: 1.5;">
+				This link expires in 24 hours. If you didn't create a Volo account, you can safely ignore this email.
+			</p>
+			<hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+			<p style="color: #aaa; font-size: 12px;">Volo — Voice-first browser assistant</p>
+		</div>
+	`, link)
+
+	return s.send(to, subject, html)
+}
+
 func (s *EmailService) send(to, subject, html string) error {
 	if !s.IsConfigured() {
 		slog.Warn("email service not configured, skipping send", "to", to, "subject", subject)

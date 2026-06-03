@@ -48,7 +48,7 @@ npm test
 
 ## UI Design
 
-- **Colors:** Discord dark palette (`#1e1f22`, `#2b2d31`, `#313338`, `#5865f2`)
+- **Colors:** Discord dark palette (`#1e1f22`, `#2b2d31`, `#313338`) with Tailwind blue accent (`#3b82f6`)
 - **Layout:** Claude/Codex style — clean sidebar with conversations, centered chat, spacious messages
 - **Not Discord-like:** No server icons, no channels, no status. Just a clean chat app.
 

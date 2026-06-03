@@ -70,6 +70,45 @@ POST /auth/logout-all
     → All devices logged out
 ```
 
+### 5. Password Reset
+
+```
+POST /auth/forgot-password { email }
+    → Find user by email (if not found, return 200 anyway — no enumeration)
+    → Rate limit: max 3 resets per hour per user
+    → Generate 32-byte random token
+    → Store SHA-256 hash in tokens table (type = "password_reset", expires in 1 hour)
+    → Send email via Resend with reset link
+    → Return 200 { "message": "If an account with that email exists, a reset link has been sent." }
+
+POST /auth/reset-password { token, password }
+    → Hash the raw token → look up in tokens table (unused + not expired)
+    → Validate new password (min 8 chars, max 128)
+    → Update credentials table (bcrypt hash)
+    → Mark token as used
+    → Invalidate all other reset tokens for this user
+    → Revoke ALL sessions (force re-login everywhere)
+    → Return 200 { "message": "Password reset successful." }
+```
+
+**Security:**
+- Tokens are SHA-256 hashed in DB (raw token only exists in the email link)
+- 1-hour expiry, single-use
+- Rate limited at the application level (3 requests per email per hour)
+- Response always returns 200 on forgot-password (prevents email enumeration)
+- All sessions revoked after reset (attacker can't stay logged in)
+
+**Email delivery:**
+- Uses [Resend](https://resend.com) (3,000 emails/month free tier)
+- Configured via `VOLO_RESEND_API_KEY` env var
+- If not configured, email step is skipped (token still generated, logged as warning)
+- Reset link points to `VOLO_RESET_PASSWORD_URL` (default: `http://localhost:5173/reset`)
+
+**Database:**
+- Generic `tokens` table supports multiple token types (password_reset, email_verify, invite)
+- Indexed on `token_hash` for fast lookup
+- Periodic cleanup: unused expired tokens can be purged via cron
+
 ## JWT Structure
 
 ```json
@@ -114,9 +153,22 @@ Check Redis: "session:<hash>" → user_id?
 | Passwords in users table | Never. Separate `credentials` table. |
 | Token theft | Sessions are revocable. Logout invalidates immediately. |
 | Brute force | Rate limiting (60 req/min per user via Redis) |
+| Password reset abuse | 3 resets/hour per user, hashed tokens, 1-hour expiry |
+| Email enumeration | Forgot-password always returns 200 regardless |
 | Token in response | Only returned once on login/register. Client stores securely. |
 | CORS | Whitelist specific origins in production |
 | Session fixation | New session created on every login |
+| Post-compromise | Password reset revokes ALL sessions |
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VOLO_JWT_SECRET` | Yes | HMAC signing secret (generate with `openssl rand -hex 32`) |
+| `VOLO_GOOGLE_CLIENT_ID` | No | Google OAuth client ID |
+| `VOLO_GOOGLE_CLIENT_SECRET` | No | Google OAuth client secret |
+| `VOLO_RESEND_API_KEY` | No | Resend API key for password reset emails |
+| `VOLO_RESET_PASSWORD_URL` | No | Frontend URL for reset page (default: `http://localhost:5173/reset`) |
 
 ## Adding New Auth Providers
 

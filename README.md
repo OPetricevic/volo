@@ -24,7 +24,30 @@
 
 ## Quick Start
 
-**Prerequisites:** Docker, Node.js 18+, Go 1.21+
+**Prerequisites:** Docker, Node.js 18+, Go 1.21+, Make
+
+<details>
+<summary>Installing prerequisites (Windows)</summary>
+
+```powershell
+# Install Chocolatey (if you don't have it) — run as Admin
+Set-ExecutionPolicy Bypass -Scope Process -Force
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+# Install everything
+choco install docker-desktop nodejs-lts golang make -y
+
+# Restart your terminal after install
+```
+
+Or install individually:
+- [Docker Desktop](https://docs.docker.com/desktop/install/windows-install/)
+- [Node.js](https://nodejs.org/) (LTS)
+- [Go](https://go.dev/dl/)
+- Make: `choco install make` or `winget install GnuWin32.Make`
+
+</details>
 
 ```bash
 # Clone

@@ -24,23 +24,31 @@
 
 ## Quick Start
 
+**Prerequisites:** Docker, Node.js 18+, Go 1.21+
+
 ```bash
 # Clone
-git clone https://github.com/yourname/volo.git
+git clone https://github.com/OPetricevic/volo.git
 cd volo
 
-# Start backend (Postgres, Redis, API)
-docker compose -f docker-compose.dev.yml up -d
+# One command — installs deps, starts services, builds extension
+make setup
+```
 
-# Build extension
-cd volo-extension && npm install && npm run build
-# Load dist/ folder in chrome://extensions (Developer mode)
+That's it. After setup completes:
 
-# Run desktop app
-cd volo-desktop && npm install && npm run dev
+- **API** runs at `http://localhost:8080/health`
+- **Extension** is built — load `volo-extension/dist` in `chrome://extensions` (Developer mode)
+- **Desktop app:** `make desktop`
+- **Landing page:** `make landing`
 
-# Landing page
-cd volo-landing && npm install && npm run dev
+```bash
+# Other commands
+make start    # Start services (if stopped)
+make stop     # Stop services
+make test     # Run all 200+ tests
+make build    # Build everything
+make clean    # Full reset (removes data)
 ```
 
 ## Features

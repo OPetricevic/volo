@@ -10,6 +10,7 @@ type Repositories struct {
 	Audit    *AuditRepository
 	Settings *SettingsRepository
 	Token    *TokenRepository
+	Macro    *MacroRepository
 }
 
 // New creates all repositories with the given connection pool.
@@ -21,5 +22,6 @@ func New(pool *pgxpool.Pool) *Repositories {
 		Audit:    NewAuditRepository(pool),
 		Settings: NewSettingsRepository(pool),
 		Token:    NewTokenRepository(pool),
+		Macro:    NewMacroRepository(pool),
 	}
 }

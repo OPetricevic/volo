@@ -66,7 +66,7 @@ export function Popup() {
     chrome.runtime.sendMessage({ type: "SET_MIC_MODE", mode } satisfies ExtensionMessage);
   }
 
-  if (showOnboarding === null) return <div className="w-[320px] h-[200px] bg-[#1e1f22]" />;
+  if (showOnboarding === null) return <div className="w-[320px] h-[200px] bg-volo-bg" />;
   if (showOnboarding) return <Onboarding onComplete={handleOnboardingComplete} />;
 
   return (
@@ -90,44 +90,54 @@ export function Popup() {
       </div>
 
       {/* Content */}
-      <div className="p-4">
+      <div className="p-3">
         {tab === "status" ? (
           <>
-            {/* Voice status */}
-            <div className="bg-volo-surface rounded-lg p-3 mb-3">
-              <div className="text-[11px] text-volo-faint uppercase tracking-wider mb-1">Voice</div>
-              <div className={`text-[13px] font-medium ${voiceState === "listening" ? "text-volo-success" : voiceState === "processing" ? "text-volo-warning" : "text-volo-muted"}`}>
-                {getStatusText(voiceState)}
+            {/* API offline warning */}
+            {!apiOnline && (
+              <div className="bg-volo-warning/10 border border-volo-warning/20 rounded-md px-3 py-2 mb-2">
+                <div className="text-[11px] font-medium text-volo-warning">Offline — history not recording</div>
               </div>
-            </div>
+            )}
 
-            {/* Mic mode */}
-            <div className="bg-volo-surface rounded-lg p-3 mb-3">
-              <div className="text-[11px] text-volo-faint uppercase tracking-wider mb-2">Microphone</div>
+            {/* Voice + Mic combined */}
+            <div className="bg-volo-surface rounded-lg p-3 mb-2">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[10px] text-volo-faint uppercase tracking-wider">Voice</div>
+                <div className={`text-[11px] font-medium ${voiceState === "listening" ? "text-volo-success" : voiceState === "error" ? "text-volo-danger" : "text-volo-muted"}`}>
+                  {getStatusText(voiceState)}
+                </div>
+              </div>
+              {voiceState === "error" && (
+                <div className="text-[10px] text-volo-danger/70 mb-2">Check browser microphone permissions.</div>
+              )}
               <div className="space-y-1">
                 <MicOption label="Always Listen" active={micMode === "always"} onClick={() => handleMicModeChange("always")} />
-                <MicOption label="Push to Talk" active={micMode === "once"} onClick={() => handleMicModeChange("once")} />
+                <MicOption label="Click to Talk" active={micMode === "once"} onClick={() => handleMicModeChange("once")} />
                 <MicOption label="Off" active={micMode === "off"} onClick={() => handleMicModeChange("off")} />
               </div>
             </div>
 
-            {/* Activate (push-to-talk) */}
+            {/* Activate (click-to-talk mode) */}
             {micMode === "once" && voiceState === "idle" && (
-              <button onClick={handleActivate} className="w-full py-2.5 bg-volo-accent text-white text-[13px] font-medium rounded-lg hover:bg-volo-accent-hover transition">
+              <button onClick={handleActivate} className="w-full py-2 bg-volo-accent text-white text-[12px] font-medium rounded-lg hover:bg-volo-accent-hover transition mb-2">
                 🎤 Activate
               </button>
             )}
-
-            {/* Help */}
-            <div className="mt-3 text-[11px] text-volo-faint">
-              <p className="text-volo-muted font-medium mb-1">Try saying:</p>
-              <p>"Hey Volo, search React hooks"</p>
-              <p>"Hey Volo, open YouTube lofi"</p>
-            </div>
           </>
         ) : (
           <HistoryTab history={history} loading={historyLoading} apiOnline={apiOnline} onClear={async () => { await clearHistory(); setHistory([]); }} />
         )}
+      </div>
+
+      {/* Account — bottom bar */}
+      <div className="px-3 pb-3 pt-2 border-t border-volo-border/30">
+        <button
+          className="w-full py-2 rounded-lg border border-volo-accent/30 bg-volo-accent/5 text-[11px] font-medium text-volo-accent hover:bg-volo-accent/10 transition"
+          onClick={() => chrome.tabs.create({ url: "https://api.volo.yourdomain.com/auth/google/start" })}
+        >
+          Sign in to sync across devices
+        </button>
       </div>
     </div>
   );
@@ -204,6 +214,7 @@ function getStatusText(state: VoiceState): string {
     case "listening": return "Listening for \"Hey Volo\"...";
     case "wake-word-detected": return "Heard you! Listening...";
     case "processing": return "Processing...";
+    case "error": return "Voice unavailable";
     default: return "Idle";
   }
 }

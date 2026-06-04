@@ -356,6 +356,112 @@ Update settings.
 
 ---
 
+## Macros (Custom Voice Commands)
+
+### GET /macros 🔒
+
+List all macros for the authenticated user.
+
+**Response (200):**
+```json
+{
+  "data": {
+    "macros": [
+      {
+        "id": "uuid",
+        "trigger_phrase": "morning routine",
+        "name": "Morning Routine",
+        "actions": [
+          { "type": "navigate", "url": "https://gmail.com" },
+          { "type": "navigate", "url": "https://youtube.com" },
+          { "type": "navigate", "url": "https://weather.com" }
+        ],
+        "enabled": true,
+        "created_at": "2026-06-04T12:00:00Z",
+        "updated_at": "2026-06-04T12:00:00Z"
+      }
+    ],
+    "limit": 10,
+    "count": 1
+  }
+}
+```
+
+### GET /macros/enabled 🔒
+
+List only enabled macros (used by extension for syncing).
+
+**Response (200):**
+```json
+{
+  "data": {
+    "macros": [ ... ]
+  }
+}
+```
+
+### POST /macros 🔒
+
+Create a new macro.
+
+**Request:**
+```json
+{
+  "trigger_phrase": "morning routine",
+  "name": "Morning Routine",
+  "actions": [
+    { "type": "navigate", "url": "https://gmail.com" },
+    { "type": "navigate", "url": "https://youtube.com" }
+  ]
+}
+```
+
+**Response (201):**
+```json
+{
+  "data": {
+    "id": "uuid",
+    "trigger_phrase": "morning routine",
+    "name": "Morning Routine",
+    "actions": [ ... ],
+    "enabled": true,
+    "created_at": "...",
+    "updated_at": "..."
+  }
+}
+```
+
+**Errors:** `MISSING_TRIGGER`, `MISSING_NAME`, `MISSING_ACTIONS`, `TOO_MANY_ACTIONS` (max 3), `MACRO_LIMIT` (max 10 per user)
+
+### PUT /macros/{id} 🔒
+
+Update an existing macro.
+
+**Request:**
+```json
+{
+  "trigger_phrase": "morning routine",
+  "name": "Morning Routine (updated)",
+  "actions": [ ... ],
+  "enabled": false
+}
+```
+
+**Errors:** `MISSING_FIELDS`, `MACRO_UPDATE_FAILED`
+
+### DELETE /macros/{id} 🔒
+
+Soft-delete a macro.
+
+**Response (200):**
+```json
+{
+  "data": { "status": "deleted" }
+}
+```
+
+---
+
 ## Health
 
 ### GET /health
@@ -400,6 +506,15 @@ Update settings.
 | CHANGE_PASSWORD_FAILED | 400 | Current password incorrect |
 | DELETE_FAILED | 400 | Password incorrect for deletion |
 | CHAT_FAILED | 500 | Ollama not running |
+| MISSING_TRIGGER | 400 | Macro trigger phrase required |
+| MISSING_NAME | 400 | Macro name required |
+| MISSING_ACTIONS | 400 | At least one action required |
+| TOO_MANY_ACTIONS | 400 | Max 3 actions per macro |
+| MACRO_LIMIT | 403 | Max 10 macros per user |
+| MACRO_LIST_FAILED | 500 | Failed to load macros |
+| MACRO_CREATE_FAILED | 500 | Failed to create macro |
+| MACRO_UPDATE_FAILED | 500 | Failed to update macro |
+| MACRO_DELETE_FAILED | 500 | Failed to delete macro |
 
 ---
 

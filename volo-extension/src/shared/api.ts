@@ -223,3 +223,76 @@ export async function healthCheck(): Promise<boolean> {
     return false;
   }
 }
+
+// ─── Macros ──────────────────────────────────────────────
+
+export interface MacroAction {
+  type: string;
+  url: string;
+}
+
+export interface Macro {
+  id: string;
+  trigger_phrase: string;
+  name: string;
+  actions: MacroAction[];
+  enabled: boolean;
+}
+
+const MACROS_CACHE_KEY = "volo_macros_cache";
+const MACROS_LAST_FETCH_KEY = "volo_macros_last_fetch";
+const MACROS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Fetch enabled macros from API and cache locally.
+ * Returns cached version if API is unreachable.
+ */
+export async function fetchMacros(): Promise<Macro[]> {
+  const result = await request<{ macros: Macro[] }>("GET", "/macros/enabled");
+
+  if (result.data?.macros) {
+    // Cache the fresh data
+    await chrome.storage.local.set({
+      [MACROS_CACHE_KEY]: result.data.macros,
+      [MACROS_LAST_FETCH_KEY]: Date.now(),
+    });
+    return result.data.macros;
+  }
+
+  // API unreachable — return cached
+  return getCachedMacros();
+}
+
+/**
+ * Get macros from local cache (no network call).
+ */
+export async function getCachedMacros(): Promise<Macro[]> {
+  const result = await chrome.storage.local.get(MACROS_CACHE_KEY);
+  return result[MACROS_CACHE_KEY] || [];
+}
+
+/**
+ * Check if cache is stale and needs refresh.
+ */
+export async function isMacroCacheStale(): Promise<boolean> {
+  const result = await chrome.storage.local.get(MACROS_LAST_FETCH_KEY);
+  const lastFetch = result[MACROS_LAST_FETCH_KEY] || 0;
+  return Date.now() - lastFetch > MACROS_CACHE_TTL;
+}
+
+/**
+ * Match a transcript against cached macros.
+ * Returns the matching macro or null.
+ */
+export async function matchMacro(transcript: string): Promise<Macro | null> {
+  const macros = await getCachedMacros();
+  const normalized = transcript.toLowerCase().trim();
+
+  for (const macro of macros) {
+    if (normalized === macro.trigger_phrase || normalized.includes(macro.trigger_phrase)) {
+      return macro;
+    }
+  }
+
+  return null;
+}

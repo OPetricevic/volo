@@ -129,6 +129,13 @@ func main() {
 			r.Post("/chat", handlers.Chat)
 			r.Get("/chat/status", handlers.ChatStatus)
 
+			// Macros (custom voice commands)
+			r.Get("/macros", handlers.ListMacros)
+			r.Get("/macros/enabled", handlers.ListEnabledMacros)
+			r.Post("/macros", handlers.CreateMacro)
+			r.Put("/macros/{id}", handlers.UpdateMacro)
+			r.Delete("/macros/{id}", handlers.DeleteMacro)
+
 			r.Post("/auth/logout", handlers.Logout)
 			r.Post("/auth/logout-all", handlers.LogoutAll)
 			r.Post("/auth/change-password", handlers.ChangePassword)

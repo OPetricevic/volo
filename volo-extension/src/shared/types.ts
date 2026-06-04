@@ -10,7 +10,7 @@ export interface CommandResult {
 }
 
 /** Voice recognition state */
-export type VoiceState = "idle" | "listening" | "processing" | "wake-word-detected";
+export type VoiceState = "idle" | "listening" | "processing" | "wake-word-detected" | "error";
 
 /** Messages between extension parts */
 export type ExtensionMessage =

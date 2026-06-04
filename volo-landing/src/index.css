@@ -36,14 +36,82 @@
     }
 }
 
+/* ─── Base ─────────────────────────────────── */
+
+html {
+    scroll-behavior: smooth;
+}
+
 body {
     margin: 0;
-    background: #0a0a0f;
+    background: #060609;
     color: #f0f0f5;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 ::selection {
     background: rgba(14, 165, 233, 0.3);
+}
+
+/* ─── Glass Utilities ──────────────────────── */
+
+.glass {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.02) inset,
+        0 20px 40px -12px rgba(0, 0, 0, 0.5);
+}
+
+.glass-card-hover:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+        0 25px 50px -12px rgba(0, 0, 0, 0.6),
+        0 0 40px -12px rgba(14, 165, 233, 0.08);
+}
+
+/* Top highlight for glass cards */
+.glass-highlight {
+    position: relative;
+}
+
+.glass-highlight::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 20%;
+    right: 20%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+    border-radius: 9999px;
+}
+
+/* Ambient glow behind sections */
+.ambient-glow {
+    position: relative;
+}
+
+.ambient-glow::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60%;
+    height: 40%;
+    background: radial-gradient(ellipse, rgba(14, 165, 233, 0.06) 0%, transparent 70%);
+    pointer-events: none;
 }

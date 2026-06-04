@@ -77,7 +77,34 @@ chrome.commands.onCommand.addListener((command) => {
 });
 
 async function handleCommand(transcript: string, currentUrl?: string) {
-  // 1. Always parse locally first (instant response)
+  console.log("[Volo] Received transcript:", transcript);
+
+  // 0. Check macros FIRST (user-defined custom commands)
+  const { matchMacro, isMacroCacheStale, fetchMacros } = await import("@/shared/api");
+
+  // Refresh cache if stale
+  if (await isMacroCacheStale()) {
+    console.log("[Volo] Macro cache stale, refreshing...");
+    await fetchMacros().catch((err) => console.warn("[Volo] Macro fetch failed:", err));
+  }
+
+  const macro = await matchMacro(transcript);
+  if (macro) {
+    console.log("[Volo] Macro matched:", macro.name, "→", macro.actions.length, "actions");
+    for (const action of macro.actions) {
+      if (action.type === "navigate" && action.url) {
+        await chrome.tabs.create({ url: action.url });
+        console.log("[Volo] Macro action: opened", action.url);
+      }
+    }
+    // Still send to API for history tracking
+    if (apiOnline) {
+      sendCommand(transcript, currentUrl).catch(() => {});
+    }
+    return;
+  }
+
+  // 1. No macro match — parse locally (instant response)
   const localCommand = parseCommand(transcript);
   console.log("[Volo] Local parse:", localCommand);
 

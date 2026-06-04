@@ -276,3 +276,65 @@ VOLO_REDIS_PASSWORD=<generated-password>
 **Alternatives considered:**
 - App-local Redis sidecar (adds a container, wastes memory, isolated failure is nice but unnecessary at this scale)
 - Managed Redis (Oracle Cloud has none in free tier, external services add latency + cost)
+
+---
+
+## 18. No Login on Landing Page
+
+**Decision:** The landing page has no login/signup functionality. Authentication happens exclusively in the desktop app and browser extension.
+
+**Why:**
+- The landing page's sole purpose is conversion: convince visitors to download/install
+- Auth already lives in the desktop app (Google OAuth, email/password) and extension (device registration)
+- Adding login would require building a web dashboard — what would it even show?
+- No thesis value in duplicating auth UI on a marketing page
+- Clean separation: landing page = marketing, app = product
+- Raycast follows the same pattern — their homepage has no auth, just download CTAs
+
+**If needed later (post-thesis):**
+- A web settings panel would be a separate SPA/route, not part of the landing page
+- Could share the same API auth (JWT) but would be a distinct deployment
+
+---
+
+## 19. Stateless Chat (No Conversation Memory)
+
+**Decision:** Each message to Ollama is independent. The prompt includes the user's question + recent command history from the database, but NOT previous chat messages.
+
+**Why:**
+- Keeps the context window small (~4000 tokens for history + 50 for the question)
+- Response time stays fast (500ms–2s) because the model processes less
+- Avoids the complexity of managing growing conversation state
+- The purpose is quick history lookups ("What did I do yesterday?"), not long conversations
+- With Gemma 2B's 8192 token limit, adding chat history would quickly consume the budget and push out actual command history
+
+**What this means for users:**
+- Each question is answered fresh with full history context
+- Follow-up questions like "tell me more about that" won't work — the model has no memory of previous answers
+- This is intentional: the chat is a search tool for your history, not a conversational AI
+
+**Tradeoff:** Users can't have multi-turn conversations. Acceptable because the primary use case is single-question lookups, not dialogue.
+
+---
+
+## 20. Desktop AI — System Requirements & Limitations
+
+**Decision:** Document the resource requirements and limitations clearly since a local 2B model has real hardware implications.
+
+**System Requirements (Desktop App with AI enabled):**
+- Minimum: 8GB RAM, quad-core CPU (2018+), 3GB free disk, Windows 10 64-bit
+- Recommended: 16GB RAM, SSD, any NVIDIA GPU (optional, speeds inference 5–10x)
+- The model uses ~2.5–3GB RAM when active, unloads after 5 minutes idle
+
+**Context budget:**
+- Gemma 2B context window: 8192 tokens
+- ~4000–6000 tokens available for history = roughly 80–120 recent commands (~1 week)
+- Responses capped at 256 tokens (short, direct answers)
+- Older history falls off naturally as new commands fill the window
+
+**Without AI (extension-only):**
+- Zero additional resource requirements
+- Voice commands use browser's built-in Web Speech API
+- Extension itself is <1MB, runs in Chrome's sandboxed process
+
+**The extension works fully without the desktop app or AI model.** The AI chat is a power feature for users who want to query their history in natural language.

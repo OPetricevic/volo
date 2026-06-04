@@ -3,19 +3,19 @@
 @tailwind utilities;
 
 :root {
-    --bg: #1e1f22;
-    --sidebar: #2b2d31;
-    --chat: #313338;
-    --input: #383a40;
-    --border: #3f4147;
-    --text: #dbdee1;
-    --text-muted: #949ba4;
-    --text-faint: #6d6f78;
-    --accent: #3b82f6;
-    --accent-hover: #2563eb;
-    --success: #23a559;
-    --warning: #f0b232;
-    --danger: #da373c;
+    --bg: #0a0a0c;
+    --sidebar: #101112;
+    --chat: #121314;
+    --input: rgba(255, 255, 255, 0.03);
+    --border: rgba(255, 255, 255, 0.06);
+    --text: #d0d6e0;
+    --text-muted: #9c9da1;
+    --text-faint: #62666d;
+    --accent: #0ea5e9;
+    --accent-hover: #0284c7;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
 }
 
 * {
@@ -27,8 +27,9 @@
 body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'gg sans', 'Noto Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     overflow: hidden;
     height: 100vh;
     font-size: 14px;
@@ -40,9 +41,9 @@ body {
     flex-direction: column;
 }
 
-/* Scrollbar — Discord style */
+/* Scrollbar */
 ::-webkit-scrollbar {
-    width: 8px;
+    width: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -50,12 +51,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #1a1b1e;
-    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #111214;
+    background: rgba(255, 255, 255, 0.12);
 }
 
 /* Drag region for custom titlebar */
@@ -65,4 +66,8 @@ body {
 
 .no-drag {
     -webkit-app-region: no-drag;
+}
+
+::selection {
+    background: rgba(14, 165, 233, 0.3);
 }

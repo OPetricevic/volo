@@ -44,7 +44,7 @@ export function SettingsView() {
             onChange={() => setMicMode("always")}
           />
           <RadioOption
-            label="Push to Talk"
+            label="Click to Talk"
             description="Activate with Ctrl+Shift+V or click the mic button"
             checked={micMode === "once"}
             onChange={() => setMicMode("once")}

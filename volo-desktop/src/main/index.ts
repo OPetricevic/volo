@@ -35,7 +35,9 @@ app.whenReady().then(() => {
   registerShortcuts();
   initAutoUpdater();
   ollamaManager = new OllamaManager();
-  ollamaManager.checkStatus();
+  ollamaManager.initialize().catch((err) => {
+    console.error("[Ollama] Init failed (non-critical):", err);
+  });
 });
 
 app.on("window-all-closed", (e: Event) => {
@@ -56,14 +58,14 @@ function createWindow() {
     height: 720,
     minWidth: 800,
     minHeight: 500,
-    frame: false, // Custom titlebar
-    titleBarStyle: "hidden",
-    backgroundColor: "#1a1a2e",
+    frame: false,
+    backgroundColor: "#0a0a0c",
     show: false,
     webPreferences: {
-      preload: join(__dirname, "../preload/index.js"),
+      preload: join(__dirname, "../preload/index.mjs"),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false,
     },
   });
 
@@ -130,15 +132,22 @@ function registerShortcuts() {
 // ─── IPC Handlers ────────────────────────────────────────
 
 // Window controls (custom titlebar)
-ipcMain.on("window:minimize", () => mainWindow?.minimize());
+ipcMain.on("window:minimize", () => {
+  console.log("[IPC] minimize");
+  mainWindow?.minimize();
+});
 ipcMain.on("window:maximize", () => {
+  console.log("[IPC] maximize");
   if (mainWindow?.isMaximized()) {
     mainWindow.unmaximize();
   } else {
     mainWindow?.maximize();
   }
 });
-ipcMain.on("window:close", () => mainWindow?.hide());
+ipcMain.on("window:close", () => {
+  console.log("[IPC] close");
+  mainWindow?.hide();
+});
 
 // Open external links
 ipcMain.on("open-external", (_e, url: string) => {

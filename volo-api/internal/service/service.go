@@ -12,6 +12,7 @@ type Services struct {
 	Command *CommandService
 	Chat    *ChatService
 	Email   *EmailService
+	repos   *repository.Repositories
 }
 
 // New creates all services.
@@ -26,5 +27,11 @@ func New(repos *repository.Repositories, rdb *redis.Client, cfg *config.Config) 
 		Command: command,
 		Chat:    chat,
 		Email:   email,
+		repos:   repos,
 	}
+}
+
+// Repos returns the repository container (for handlers that need direct access).
+func (s *Services) Repos() *repository.Repositories {
+	return s.repos
 }

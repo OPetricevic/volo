@@ -5,8 +5,26 @@
 body {
     margin: 0;
     padding: 0;
-    font-family: 'gg sans', 'Noto Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
-    background: #1e1f22;
-    color: #dbdee1;
+    -moz-osx-font-smoothing: grayscale;
+    background: #0a0a0c;
+    color: #d0d6e0;
+}
+
+::selection {
+    background: rgba(14, 165, 233, 0.3);
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
 }

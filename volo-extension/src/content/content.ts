@@ -238,25 +238,25 @@ function showOverlay() {
       top: 20px;
       right: 20px;
       z-index: 2147483647;
-      background: #2b2d31;
-      border: 1px solid #5865f2;
+      background: #0a0a0c;
+      border: 1px solid rgba(14, 165, 233, 0.3);
       border-radius: 10px;
       padding: 10px 18px;
       display: flex;
       align-items: center;
       gap: 10px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-      font-family: -apple-system, system-ui, sans-serif;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
+      font-family: 'Inter', -apple-system, system-ui, sans-serif;
       animation: volo-fade-in 0.2s ease;
     ">
       <div style="
         width: 8px;
         height: 8px;
-        background: #23a559;
+        background: #22c55e;
         border-radius: 50%;
         animation: volo-pulse 1.2s infinite;
       "></div>
-      <span style="color: #dbdee1; font-size: 12px; font-weight: 500;">Listening...</span>
+      <span style="color: #d0d6e0; font-size: 12px; font-weight: 500;">Listening...</span>
     </div>
     <style>
       @keyframes volo-pulse {

@@ -92,12 +92,12 @@ export function ChatView() {
       </div>
 
       {/* Input — centered, prominent */}
-      <div className="border-t border-[var(--border)]/20 bg-[var(--chat)]">
+      <div className="border-t border-[var(--border)] bg-[var(--chat)]">
         <div className="max-w-[720px] mx-auto px-6 py-4">
-          <div className="flex items-end bg-[var(--input)] rounded-2xl px-4 py-3 border border-[var(--border)]/30 focus-within:border-[var(--text-faint)]/50 transition">
-            <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--border)]/30 text-[var(--text-faint)] hover:text-[var(--text-muted)] transition shrink-0 mb-0.5" aria-label="Voice">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                <rect x="6" y="2" width="6" height="9" rx="3"/><path d="M3.5 8.5a5.5 5.5 0 0 0 11 0"/><line x1="9" y1="14" x2="9" y2="16"/>
+          <div className="flex items-end bg-[var(--input)] rounded-xl px-4 py-3 border border-[var(--border)] focus-within:border-[rgba(255,255,255,0.1)] transition">
+            <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--border)] text-[var(--text-faint)] hover:text-[var(--text-muted)] transition shrink-0 mb-0.5" aria-label="Voice">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 1a3 3 0 0 0-3 3v4a3 3 0 1 0 6 0V4a3 3 0 0 0-3-3zM3.5 7.5a.75.75 0 0 1 .75.75A3.75 3.75 0 0 0 8 12a3.75 3.75 0 0 0 3.75-3.75.75.75 0 0 1 1.5 0A5.25 5.25 0 0 1 8.75 13.4v1.35h1.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5h1.5V13.4A5.25 5.25 0 0 1 2.75 8.25a.75.75 0 0 1 .75-.75z"/>
               </svg>
             </button>
             <textarea
@@ -118,7 +118,7 @@ export function ChatView() {
             </button>
           </div>
           <p className="text-[11px] text-[var(--text-faint)] mt-2 text-center">
-            Volo can make mistakes. Voice: Ctrl+Shift+V
+            Volo can make mistakes · Ctrl+Shift+V for voice
           </p>
         </div>
       </div>
@@ -134,7 +134,7 @@ function EmptyState() {
       </div>
       <h2 className="text-xl font-semibold text-[var(--text)] mb-2">How can I help?</h2>
       <p className="text-[14px] text-[var(--text-muted)] max-w-sm">
-        Ask about your search history, or give me a voice command. Try "What did I search today?" or say "Hey Volo, open YouTube".
+        Ask about your browsing history, or give me a voice command. Try "What did I search today?" or say "Hey Volo, open YouTube".
       </p>
     </div>
   );
@@ -144,18 +144,23 @@ function MessageBlock({ message }: { message: Message }) {
   const isAssistant = message.role === "assistant";
 
   return (
-    <div className={`py-5 ${isAssistant ? "" : ""}`}>
-      {isAssistant && (
-        <div className="flex items-start gap-3">
+    <div className={`py-2 ${isAssistant ? "flex justify-start" : "flex justify-end"}`}>
+      {isAssistant ? (
+        <div className="flex items-start gap-3 max-w-[85%]">
           <VoloIcon />
-          <div className="text-[14px] text-[var(--text)] leading-[1.7] whitespace-pre-wrap pt-0.5">
-            {message.content}
+          <div className="rounded-xl rounded-tl-sm px-4 py-2.5 bg-[var(--input)] border border-[var(--border)]">
+            <div className="text-[14px] text-[var(--text)] leading-[1.7] whitespace-pre-wrap">
+              {message.content}
+            </div>
           </div>
         </div>
-      )}
-      {!isAssistant && (
-        <div className="text-[14px] text-[var(--text)] leading-[1.7] whitespace-pre-wrap">
-          {message.content}
+      ) : (
+        <div className="max-w-[75%]">
+          <div className="rounded-xl rounded-tr-sm px-4 py-2.5 bg-[var(--accent)]/10 border border-[var(--accent)]/20">
+            <div className="text-[14px] text-[var(--text)] leading-[1.7] whitespace-pre-wrap">
+              {message.content}
+            </div>
+          </div>
         </div>
       )}
     </div>
